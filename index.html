@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Axion - v15.1 Multi-Proxy Engine</title>
+    <title>Axion - v18.0 Smart Engine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -11,69 +11,32 @@
     
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap');
-        
-        :root {
-            --app-bg: #02040a;
-            --glass-bg: rgba(13, 18, 30, 0.92);
-            --glass-border: rgba(255, 255, 255, 0.12);
-        }
-
+        :root { --app-bg: #02040a; --glass-bg: rgba(13, 18, 30, 0.92); --glass-border: rgba(255, 255, 255, 0.12); }
         * { -webkit-tap-highlight-color: transparent; }
-
-        body { 
-            background-color: var(--app-bg); 
-            color: #f8fafc; 
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            overflow-x: hidden;
-            overscroll-behavior-y: none;
-        }
-
+        body { background-color: var(--app-bg); color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; overscroll-behavior-y: none; }
         ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-track { background: var(--app-bg); }
         ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
-
-        .glass-card { 
-            background: var(--glass-bg); 
-            backdrop-filter: blur(25px); 
-            -webkit-backdrop-filter: blur(25px);
-            border: 1px solid var(--glass-border); 
-        }
-        .glass-nav { 
-            background: rgba(2, 4, 10, 0.95); 
-            backdrop-filter: blur(20px); 
-            border-top: 1px solid var(--glass-border); 
-        }
+        .glass-card { background: var(--glass-bg); backdrop-filter: blur(25px); border: 1px solid var(--glass-border); }
+        .glass-nav { background: rgba(2, 4, 10, 0.95); backdrop-filter: blur(20px); border-top: 1px solid var(--glass-border); }
         .axion-glow { box-shadow: 0 0 40px -5px rgba(255, 87, 34, 0.5); }
         .axion-gradient { background: linear-gradient(135deg, #ff5722 0%, #f4511e 100%); }
-
+        .ai-gradient { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); }
         .btn-interact { transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
         .btn-interact:active:not(:disabled) { transform: scale(0.95); filter: brightness(0.9); }
         .btn-interact:disabled { opacity: 0.5; cursor: not-allowed; }
-
         .card-hover { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
         .card-hover:hover { transform: translateY(-3px); border-color: rgba(255, 87, 34, 0.5); }
-
-        .skeleton {
-            background: linear-gradient(90deg, #0f172a 25%, #1e293b 50%, #0f172a 75%);
-            background-size: 200% 100%;
-            animation: loading 1.5s infinite;
-        }
+        .skeleton { background: linear-gradient(90deg, #0f172a 25%, #1e293b 50%, #0f172a 75%); background-size: 200% 100%; animation: loading 1.5s infinite; }
         @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-
         @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes toastIn { from { opacity: 0; transform: translateY(-20px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }
-
+        @keyframes pulseGlow { 0%, 100% { box-shadow: 0 0 20px -5px rgba(139, 92, 246, 0.5); } 50% { box-shadow: 0 0 30px 0px rgba(139, 92, 246, 0.9); } }
         .animate-slide-up { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .animate-fade-in { animation: fadeIn 0.25s ease forwards; }
         .animate-toast { animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-
-        .line-clamp-2 {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
+        .animate-ai { animation: pulseGlow 2s ease-in-out infinite; }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
@@ -96,72 +59,89 @@
         </div>
     </div>
 
-    <div id="detailModal" class="fixed inset-0 z-[4000] hidden items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
-        <div class="glass-card w-full max-w-md p-6 rounded-3xl border border-slate-800 animate-slide-up shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+    <!-- AI AKILLI ANALİZ MODALI -->
+    <div id="aiModal" class="fixed inset-0 z-[4000] hidden items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
+        <div class="glass-card w-full max-w-md p-6 rounded-3xl border border-purple-500/30 animate-slide-up shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-start">
-                <div>
-                    <span id="modalStoreBadge" class="text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-slate-800 text-orange-400 border border-slate-700">Mağaza</span>
-                    <h3 id="modalProductName" class="text-sm font-black text-white mt-2 leading-snug">Ürün Adı</h3>
+                <div class="flex-1 min-w-0">
+                    <span id="aiModalStoreBadge" class="text-[9px] font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider bg-slate-800 text-orange-400 border border-slate-700">Mağaza</span>
+                    <h3 id="aiModalProductName" class="text-sm font-black text-white mt-2 leading-snug line-clamp-2">Ürün Adı</h3>
                 </div>
-                <button onclick="closeDetailModal()" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
+                <button onclick="closeAiModal()" class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition ml-2 flex-shrink-0">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <div class="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-start gap-3">
-                <i class="fa-solid fa-brain text-blue-400 text-lg mt-0.5"></i>
-                <div>
-                    <h5 class="text-[11px] font-bold text-blue-300 uppercase tracking-wider">Gemini AI Piyasa Analizi</h5>
-                    <p id="aiInsightText" class="text-xs text-slate-300 mt-1 leading-relaxed">Fiyat takibi aktif...</p>
+            <!-- AI SKOR KARTI -->
+            <div id="aiScoreCard" class="p-4 rounded-2xl border-2"></div>
+
+            <!-- AI ANALİZ -->
+            <div class="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/30">
+                <div class="flex items-center gap-2 mb-2">
+                    <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
+                    <h5 class="text-[11px] font-bold text-purple-300 uppercase tracking-wider">Akıllı Analiz</h5>
+                </div>
+                <div id="aiAnalysisText" class="text-xs text-slate-300 leading-relaxed space-y-2"></div>
+            </div>
+
+            <!-- FİYAT İSTATİSTİKLERİ -->
+            <div class="grid grid-cols-2 gap-2">
+                <div class="bg-[#080d1a] p-3 rounded-xl border border-slate-800">
+                    <p class="text-[9px] text-slate-500 font-bold uppercase">Trend</p>
+                    <p id="aiTrend" class="text-xs font-black text-slate-100 mt-1">-</p>
+                </div>
+                <div class="bg-[#080d1a] p-3 rounded-xl border border-slate-800">
+                    <p class="text-[9px] text-slate-500 font-bold uppercase">Risk</p>
+                    <p id="aiRisk" class="text-xs font-black text-slate-100 mt-1">-</p>
+                </div>
+                <div class="bg-[#080d1a] p-3 rounded-xl border border-slate-800">
+                    <p class="text-[9px] text-slate-500 font-bold uppercase">Potansiyel Tasarruf</p>
+                    <p id="aiSavings" class="text-xs font-black text-emerald-400 mt-1">-</p>
+                </div>
+                <div class="bg-[#080d1a] p-3 rounded-xl border border-slate-800">
+                    <p class="text-[9px] text-slate-500 font-bold uppercase">Hedefe Kalan</p>
+                    <p id="aiRemaining" class="text-xs font-black text-orange-400 mt-1">-</p>
                 </div>
             </div>
 
-            <div class="grid grid-cols-3 gap-2 py-2">
-                <div class="bg-[#080d1a] p-3 rounded-2xl border border-slate-800 text-center">
-                    <p class="text-[9px] text-slate-500 font-bold uppercase">Mevcut</p>
-                    <p id="modalCurrPrice" class="text-xs font-black text-white mt-1">0 ₺</p>
-                </div>
-                <div class="bg-[#080d1a] p-3 rounded-2xl border border-slate-800 text-center">
-                    <p class="text-[9px] text-slate-500 font-bold uppercase">Hedef</p>
-                    <p id="modalTgtPrice" class="text-xs font-black text-emerald-400 mt-1">0 ₺</p>
-                </div>
-                <div class="bg-[#080d1a] p-3 rounded-2xl border border-slate-800 text-center">
-                    <p class="text-[9px] text-slate-500 font-bold uppercase">İlk</p>
-                    <p id="modalInitPrice" class="text-xs font-black text-sky-400 mt-1">0 ₺</p>
-                </div>
+            <!-- TAVSİYE BUTONLARI -->
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="aiAdvice('buy')" class="btn-interact bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 p-3 rounded-xl text-[10px] font-bold flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-cart-shopping text-sm"></i> Alım Analizi
+                </button>
+                <button onclick="aiAdvice('wait')" class="btn-interact bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 p-3 rounded-xl text-[10px] font-bold flex flex-col items-center gap-1">
+                    <i class="fa-solid fa-clock text-sm"></i> Bekleme Analizi
+                </button>
             </div>
 
             <div class="bg-[#080d1a] p-4 rounded-2xl border border-slate-800">
                 <h4 class="text-[11px] font-bold text-slate-300 flex items-center gap-2 mb-3">
                     <i class="fa-solid fa-chart-line text-orange-500"></i> Fiyat Trendi
                 </h4>
-                <div class="relative h-48 w-full">
-                    <canvas id="priceChart"></canvas>
+                <div class="relative h-40 w-full">
+                    <canvas id="aiChart"></canvas>
                 </div>
             </div>
 
-            <a id="modalExternalLink" href="#" target="_blank" class="btn-interact block w-full axion-gradient text-white text-xs py-3.5 rounded-xl font-bold text-center shadow-lg">
-                Orijinal Mağazada Aç <i class="fa-solid fa-arrow-up-right-from-square text-[10px] ml-1"></i>
+            <a id="aiModalLink" href="#" target="_blank" class="btn-interact block w-full axion-gradient text-white text-xs py-3.5 rounded-xl font-bold text-center shadow-lg">
+                Mağazaya Git <i class="fa-solid fa-arrow-up-right-from-square text-[10px] ml-1"></i>
             </a>
         </div>
     </div>
 
+    <!-- AUTH MODAL -->
     <div id="authModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-2xl">
         <div class="glass-card w-full max-w-md p-7 rounded-3xl border border-slate-800 animate-slide-up shadow-2xl">
             <div class="text-center mb-8">
-                <div class="axion-gradient w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 font-black text-3xl text-white shadow-lg axion-glow">
-                    AX
-                </div>
+                <div class="axion-gradient w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4 font-black text-3xl text-white shadow-lg axion-glow">AX</div>
                 <h2 class="text-2xl font-black text-white tracking-tight">Axion Intelligence</h2>
-                <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-semibold">v15.1 Multi-Proxy</p>
+                <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-semibold">v18.0 Smart Engine</p>
             </div>
-
             <div id="authFormContainer">
                 <div class="flex p-1 bg-[#080d1a] border border-slate-800 rounded-2xl mb-6 shadow-inner">
                     <button type="button" id="tabLoginBtn" class="btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 bg-orange-500 text-white shadow-md">Giriş Yap</button>
                     <button type="button" id="tabRegisterBtn" class="btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-300 text-slate-400 hover:text-white">Kayıt Ol</button>
                 </div>
-
                 <form id="authForm" class="space-y-4">
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">E-Posta</label>
@@ -176,31 +156,24 @@
                         <input type="password" id="authConfirmPassword" placeholder="••••••••" class="w-full bg-[#080d1a] border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                     </div>
                     <button type="submit" id="mainAuthBtn" class="btn-interact w-full axion-gradient text-white font-bold text-xs py-4 rounded-xl transition shadow-lg mt-4 flex items-center justify-center gap-2">
-                        <span>Giriş Yap</span>
-                        <i class="fa-solid fa-arrow-right-to-bracket"></i>
+                        <span>Giriş Yap</span> <i class="fa-solid fa-arrow-right-to-bracket"></i>
                     </button>
                 </form>
             </div>
         </div>
     </div>
 
+    <!-- ANA UYGULAMA -->
     <div id="appContent" class="hidden">
         <header class="p-4 glass-nav flex justify-between items-center sticky top-0 z-50 shadow-sm">
             <div class="flex items-center space-x-3">
-                <div class="axion-gradient text-white w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl tracking-tighter shadow-md axion-glow">
-                    AX
-                </div>
+                <div class="axion-gradient text-white w-10 h-10 rounded-xl flex items-center justify-center font-black text-xl tracking-tighter shadow-md axion-glow">AX</div>
                 <div class="flex flex-col">
-                    <h1 class="text-sm font-black text-white tracking-wide flex items-center gap-1.5">
-                        AXION <span class="text-[8px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-mono font-bold">v15.1 MULTI</span>
-                    </h1>
+                    <h1 class="text-sm font-black text-white tracking-wide flex items-center gap-1.5">AXION <span class="text-[8px] bg-purple-500/20 text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full font-mono font-bold">SMART v18</span></h1>
                     <p class="text-[10px] text-slate-400 font-medium truncate max-w-[150px]" id="userEmailDisplay">Yükleniyor...</p>
                 </div>
             </div>
-            
-            <button onclick="logout()" class="btn-interact bg-slate-800/60 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 text-[11px] px-3.5 py-2.5 rounded-xl border border-slate-700/60 hover:border-rose-500/30 transition-all flex items-center gap-1.5 font-semibold">
-                <i class="fa-solid fa-power-off"></i> Çıkış
-            </button>
+            <button onclick="logout()" class="btn-interact bg-slate-800/60 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 text-[11px] px-3.5 py-2.5 rounded-xl border border-slate-700/60 transition-all flex items-center gap-1.5 font-semibold"><i class="fa-solid fa-power-off"></i> Çıkış</button>
         </header>
 
         <main id="tab-home" class="p-4 space-y-4 max-w-md mx-auto animate-fade-in">
@@ -209,24 +182,26 @@
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
                     <input type="text" id="searchInput" oninput="filterProducts()" placeholder="Ara..." class="w-full bg-[#080d1a] border border-slate-800 rounded-2xl pl-11 pr-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                 </div>
-                <button onclick="refreshAllPrices()" id="refreshAllBtn" class="btn-interact bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 px-3.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow">
-                    <i class="fa-solid fa-rotate text-xs" id="refreshIcon"></i> Yenile
-                </button>
+                <button onclick="refreshAllPrices()" id="refreshAllBtn" class="btn-interact bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 px-3.5 rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow"><i class="fa-solid fa-rotate text-xs" id="refreshIcon"></i> Yenile</button>
+            </div>
+
+            <!-- SMART INSIGHT BANNER -->
+            <div id="smartInsightBanner" class="hidden glass-card p-4 rounded-2xl border border-purple-500/30 bg-purple-500/5">
+                <div class="flex items-start gap-3">
+                    <div class="ai-gradient w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-brain text-white text-sm"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] font-bold text-purple-300 uppercase mb-1">Akıllı İçgörü</p>
+                        <p id="smartInsightText" class="text-xs text-slate-300 leading-relaxed"></p>
+                    </div>
+                </div>
             </div>
 
             <div class="grid grid-cols-3 gap-3">
-                <div class="glass-card p-3.5 rounded-2xl text-center card-hover flex flex-col justify-center">
-                    <p class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">Radarda</p>
-                    <span id="productCount" class="text-xl font-black text-orange-500">-</span>
-                </div>
-                <div class="glass-card p-3.5 rounded-2xl text-center card-hover flex flex-col justify-center">
-                    <p class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">Hedefte</p>
-                    <span id="targetHitCount" class="text-xl font-black text-emerald-400">-</span>
-                </div>
-                <div class="glass-card p-3.5 rounded-2xl text-center card-hover flex flex-col justify-center">
-                    <p class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">Tasarruf</p>
-                    <span id="totalSavings" class="text-sm font-black text-sky-400 whitespace-nowrap">-</span>
-                </div>
+                <div class="glass-card p-3.5 rounded-2xl text-center card-hover flex flex-col justify-center"><p class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">Radarda</p><span id="productCount" class="text-xl font-black text-orange-500">-</span></div>
+                <div class="glass-card p-3.5 rounded-2xl text-center card-hover flex flex-col justify-center"><p class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">Hedefte</p><span id="targetHitCount" class="text-xl font-black text-emerald-400">-</span></div>
+                <div class="glass-card p-3.5 rounded-2xl text-center card-hover flex flex-col justify-center"><p class="text-[9px] text-slate-500 font-bold uppercase tracking-wider mb-1">Tasarruf</p><span id="totalSavings" class="text-sm font-black text-sky-400 whitespace-nowrap">-</span></div>
             </div>
 
             <div id="productList" class="space-y-3 pb-6"></div>
@@ -234,21 +209,7 @@
 
         <section id="tab-add" class="p-4 max-w-md mx-auto hidden space-y-4 animate-fade-in">
             <div class="glass-card p-6 rounded-3xl border border-slate-800">
-                <div class="flex items-center justify-between mb-6">
-                    <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-2xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20 shadow-inner">
-                            <i class="fa-solid fa-bolt text-orange-500 text-base"></i>
-                        </div>
-                        <div>
-                            <h2 class="text-sm font-black text-white">Akıllı Ürün Takip</h2>
-                            <p class="text-[10px] text-slate-400">Link yapıştırın, fiyat otomatik gelsin</p>
-                        </div>
-                    </div>
-                    <button type="button" onclick="pasteFromClipboard()" class="btn-interact bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] px-3 py-2 rounded-xl font-bold flex items-center gap-1.5">
-                        <i class="fa-solid fa-paste"></i> Yapıştır
-                    </button>
-                </div>
-                
+                <h2 class="text-sm font-black text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-bolt text-orange-500"></i> Akıllı Ürün Takip</h2>
                 <form id="addProductForm" class="space-y-4">
                     <div class="space-y-1.5">
                         <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Ürün URL</label>
@@ -257,14 +218,8 @@
                             <i class="fa-solid fa-circle-notch fa-spin absolute right-3.5 top-1/2 -translate-y-1/2 text-orange-500 text-xs hidden" id="fetchSpinner"></i>
                         </div>
                     </div>
-
                     <div id="statusBanner" class="hidden p-3.5 rounded-2xl text-[11px] font-medium flex items-center gap-2.5 animate-slide-up border"></div>
-
-                    <div class="space-y-1.5">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Ürün Adı</label>
-                        <input type="text" id="pName" placeholder="Otomatik tespit..." required class="w-full bg-[#080d1a] border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
-                    </div>
-
+                    <div class="space-y-1.5"><label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Ürün Adı</label><input type="text" id="pName" placeholder="Otomatik tespit..." required class="w-full bg-[#080d1a] border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition"></div>
                     <div class="space-y-1.5">
                         <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">İndirim Hedefi</label>
                         <div class="grid grid-cols-3 gap-2">
@@ -273,493 +228,572 @@
                             <button type="button" onclick="setTargetPercent(0.15)" id="targetBtn-15" class="btn-interact py-2.5 bg-slate-800 text-slate-300 rounded-xl text-[10px] font-bold border border-slate-700">%15</button>
                         </div>
                     </div>
-
-                    <input type="hidden" id="pCurrent">
-                    <input type="hidden" id="pTarget">
-                    <input type="hidden" id="pStore" value="Diğer">
-
-                    <button type="submit" id="addProductBtn" class="btn-interact w-full axion-gradient text-white font-bold text-xs py-4 rounded-xl mt-2 transition flex items-center justify-center gap-2 shadow-lg">
-                        <span>Radara Ekle</span>
-                        <i class="fa-solid fa-rocket text-xs"></i>
-                    </button>
+                    <input type="hidden" id="pCurrent"><input type="hidden" id="pTarget"><input type="hidden" id="pStore" value="Diğer">
+                    <button type="submit" id="addProductBtn" class="btn-interact w-full axion-gradient text-white font-bold text-xs py-4 rounded-xl mt-2 transition flex items-center justify-center gap-2 shadow-lg"><span>Radara Ekle</span><i class="fa-solid fa-rocket text-xs"></i></button>
                 </form>
             </div>
         </section>
 
         <section id="tab-discover" class="p-4 max-w-md mx-auto hidden space-y-4 animate-fade-in">
             <div class="glass-card p-6 rounded-3xl border border-slate-800">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-inner">
-                        <i class="fa-solid fa-compass text-blue-400 text-lg"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-sm font-black text-white">Canlı Keşif</h2>
-                        <p class="text-[10px] text-slate-400">Ürün arayın</p>
-                    </div>
-                </div>
-
+                <h2 class="text-sm font-black text-white mb-4 flex items-center gap-2"><i class="fa-solid fa-compass text-blue-400"></i> Canlı Keşif</h2>
                 <div class="relative">
                     <input type="text" id="aiSearchQuery" placeholder="Örn: iPhone 15..." class="w-full bg-[#080d1a] border border-slate-800 rounded-2xl pl-11 pr-24 py-3.5 text-xs text-white focus:outline-none focus:border-blue-500 transition">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
-                    <button onclick="runAiSearch()" class="btn-interact absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-2 rounded-xl font-bold flex items-center gap-1 shadow">
-                        <i class="fa-solid fa-bolt"></i> Ara
-                    </button>
+                    <button onclick="runSearch()" class="btn-interact absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3 py-2 rounded-xl font-bold flex items-center gap-1 shadow"><i class="fa-solid fa-bolt"></i> Ara</button>
                 </div>
             </div>
-
-            <div id="aiSearchResults" class="space-y-3">
-                <div class="text-center py-8 glass-card rounded-3xl border border-slate-800">
-                    <i class="fa-solid fa-brain text-3xl text-blue-500/50 mb-2"></i>
-                    <p class="text-xs text-slate-400 font-medium">Ürün arayın</p>
-                </div>
-            </div>
+            <div id="aiSearchResults" class="space-y-3"><div class="text-center py-8 glass-card rounded-3xl border border-slate-800"><i class="fa-solid fa-brain text-3xl text-blue-500/50 mb-2"></i><p class="text-xs text-slate-400 font-medium">Ürün arayın</p></div></div>
         </section>
 
         <nav class="fixed bottom-0 left-0 right-0 glass-nav py-3 px-6 flex justify-around items-center z-40 max-w-md mx-auto pb-[calc(env(safe-area-inset-bottom)+12px)]">
-            <button onclick="switchTab('home')" id="nav-home" class="btn-interact flex flex-col items-center text-xs text-orange-500 transition-colors w-16">
-                <i class="fa-solid fa-chart-line text-lg mb-1"></i>
-                <span class="text-[10px] font-bold">Radar</span>
-            </button>
-            <button onclick="switchTab('add')" id="nav-add" class="btn-interact flex flex-col items-center text-slate-500 hover:text-slate-300 transition-colors w-16 relative">
-                <div class="absolute -top-10 axion-gradient text-white w-12 h-12 rounded-full flex items-center justify-center border-4 border-[#02040a] shadow-lg axion-glow">
-                    <i class="fa-solid fa-plus text-lg"></i>
-                </div>
-                <span class="text-[10px] font-bold mt-5">Ekle</span>
-            </button>
-            <button onclick="switchTab('discover')" id="nav-discover" class="btn-interact flex flex-col items-center text-xs text-slate-500 transition-colors w-16">
-                <i class="fa-solid fa-compass text-lg mb-1"></i>
-                <span class="text-[10px] font-bold">Keşfet</span>
-            </button>
+            <button onclick="switchTab('home')" id="nav-home" class="btn-interact flex flex-col items-center text-xs text-orange-500 transition-colors w-16"><i class="fa-solid fa-chart-line text-lg mb-1"></i><span class="text-[10px] font-bold">Radar</span></button>
+            <button onclick="switchTab('add')" id="nav-add" class="btn-interact flex flex-col items-center text-slate-500 hover:text-slate-300 transition-colors w-16 relative"><div class="absolute -top-10 axion-gradient text-white w-12 h-12 rounded-full flex items-center justify-center border-4 border-[#02040a] shadow-lg axion-glow"><i class="fa-solid fa-plus text-lg"></i></div><span class="text-[10px] font-bold mt-5">Ekle</span></button>
+            <button onclick="switchTab('discover')" id="nav-discover" class="btn-interact flex flex-col items-center text-xs text-slate-500 transition-colors w-16"><i class="fa-solid fa-compass text-lg mb-1"></i><span class="text-[10px] font-bold">Keşfet</span></button>
         </nav>
     </div>
 
     <script>
+        // ============================================================
+        // YAPILANDIRMA - SADECE BURAYI KENDİ BİLGİLERİNİZLE DEĞİŞTİRİN
+        // ============================================================
+        const SUPABASE_URL = "https://rgrborzdgbslwmixszyl.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_UqT3G_hrhUFarwUEZ6UBxA_BWZpfWHw";
+
+        // ============================================================
+        // GLOBAL DEĞİŞKENLER
+        // ============================================================
+        let db = null;
+        let currentUser = null;
+        let currentAuthMode = 'login';
+        let allUserProducts = [];
+        let aiChartInstance = null;
+        let debounceTimer = null;
+        let selectedDiscountRate = 0.10;
+        let currentAiProduct = null;
+
+        const formatMoney = (amount) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 }).format(parseFloat(amount) || 0);
+
+        // ============================================================
+        // TOAST
+        // ============================================================
+        window.showToast = function(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const styles = { success: 'bg-emerald-950/90 border-emerald-500/50 text-emerald-100', error: 'bg-rose-950/90 border-rose-500/50 text-rose-100', info: 'bg-slate-900/90 border-orange-500/50 text-slate-100' };
+            const icons = { success: 'fa-circle-check text-emerald-400', error: 'fa-circle-xmark text-rose-400', info: 'fa-circle-info text-orange-400' };
+            toast.className = `glass-card ${styles[type]} p-3.5 rounded-2xl border text-[11px] font-medium flex items-center gap-3 shadow-lg backdrop-blur-md animate-toast pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type]} text-lg"></i> <span class="flex-1">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-10px) scale(0.95)'; toast.style.transition = 'all 0.3s ease'; setTimeout(() => toast.remove(), 300); }, 3500);
+        };
+
+        // ============================================================
+        // CONFIRM
+        // ============================================================
+        window.customConfirm = function(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customConfirmModal');
+                const msgEl = document.getElementById('confirmMessage');
+                const btnYes = document.getElementById('confirmActionBtn');
+                const btnNo = document.getElementById('confirmCancelBtn');
+                msgEl.innerText = message;
+                modal.classList.remove('hidden'); modal.classList.add('flex');
+                const cleanup = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); btnYes.removeEventListener('click', onYes); btnNo.removeEventListener('click', onNo); };
+                const onYes = () => { cleanup(); resolve(true); };
+                const onNo = () => { cleanup(); resolve(false); };
+                btnYes.addEventListener('click', onYes);
+                btnNo.addEventListener('click', onNo);
+            });
+        };
+
+        // ============================================================
+        // YEREL AI MOTORU - "AKILLI ANALİZ"
+        // ============================================================
+        const SmartAI = {
+            analyzeProduct: function(product) {
+                const curr = parseFloat(product.current_price) || 0;
+                const init = parseFloat(product.initial_price) || curr;
+                const tgt = parseFloat(product.target_price) || 0;
+
+                const dropFromInit = init - curr;
+                const dropPercent = init > 0 ? (dropFromInit / init) * 100 : 0;
+                const remainingToTarget = curr - tgt;
+                const remainingPercent = tgt > 0 ? (remainingToTarget / tgt) * 100 : 0;
+                const isAtTarget = curr <= tgt;
+
+                const trend = dropPercent > 1 ? 'down' : dropPercent < -1 ? 'up' : 'stable';
+
+                let buyScore = 0;
+                if (isAtTarget) buyScore += 50;
+                if (trend === 'down') buyScore += 20;
+                if (dropPercent > 10) buyScore += 15;
+                if (remainingPercent < 5) buyScore += 10;
+                if (trend === 'up') buyScore -= 15;
+                buyScore = Math.max(0, Math.min(100, buyScore));
+
+                const riskScore = trend === 'up' ? 'Yüksek' : trend === 'down' ? 'Düşük' : 'Orta';
+                const potentialSavings = init - tgt;
+
+                return {
+                    curr, init, tgt, dropPercent, remainingPercent,
+                    isAtTarget, trend, buyScore, riskScore, potentialSavings,
+                    dropFromInit, remainingToTarget
+                };
+            },
+
+            getRecommendation: function(analysis) {
+                if (analysis.isAtTarget) {
+                    return { label: '🎯 ALIM ZAMANI', color: 'emerald', text: 'Hedef fiyata ulaşıldı! Alım için uygun bir zaman.' };
+                }
+                if (analysis.dropPercent > 15) {
+                    return { label: '🔥 FIRSAT', color: 'orange', text: 'Fiyat önemli ölçüde düştü. Takip etmeye değer.' };
+                }
+                if (analysis.trend === 'down' && analysis.remainingPercent < 15) {
+                    return { label: '⏳ BEKLE', color: 'amber', text: 'Düşüş trendi devam ediyor. Hedefe az kaldı.' };
+                }
+                if (analysis.trend === 'up') {
+                    return { label: '⚠️ RİSKLİ', color: 'rose', text: 'Fiyat yükseliyor. Hedefi güncellemek isteyebilirsiniz.' };
+                }
+                return { label: '👀 TAKİP ET', color: 'slate', text: 'Fiyat stabil. Takibe devam edin.' };
+            },
+
+            generateInsight: function(analysis, product) {
+                const rec = this.getRecommendation(analysis);
+                const lines = [];
+
+                if (analysis.isAtTarget) {
+                    lines.push(`<b class="text-emerald-400">🎯 Hedef fiyata ulaşıldı!</b>`);
+                    lines.push(`Bu ürünü <b>${formatMoney(analysis.curr)}</b> fiyatla hemen alabilirsiniz.`);
+                    lines.push(`İlk fiyattan <b class="text-emerald-400">%${analysis.dropPercent.toFixed(1)}</b> daha ucuz.`);
+                } else {
+                    lines.push(`<b class="text-slate-100">${product.name}</b> şu an <b>${formatMoney(analysis.curr)}</b>.`);
+                    if (analysis.dropPercent > 0) {
+                        lines.push(`İlk fiyattan <b class="text-emerald-400">%${analysis.dropPercent.toFixed(1)}</b> düşüş var.`);
+                    } else if (analysis.dropPercent < 0) {
+                        lines.push(`İlk fiyata göre <b class="text-rose-400">%${Math.abs(analysis.dropPercent).toFixed(1)}</b> artış var.`);
+                    } else {
+                        lines.push(`Fiyat ilk kayıttan bu yana değişmedi.`);
+                    }
+                    lines.push(`Hedefe ulaşmak için <b class="text-orange-400">${formatMoney(analysis.remainingToTarget)}</b> (%${analysis.remainingPercent.toFixed(1)}) daha düşmesi gerekiyor.`);
+                    if (analysis.potentialSavings > 0) {
+                        lines.push(`<span class="text-purple-300">Hedefe ulaşırsanız toplam <b>${formatMoney(analysis.potentialSavings)}</b> tasarruf edersiniz.</span>`);
+                    }
+                }
+
+                return { lines, recommendation: rec };
+            }
+        };
+
+        // ============================================================
+        // AI MODAL
+        // ============================================================
+        window.openAiModal = function(product) {
+            currentAiProduct = product;
+            const analysis = SmartAI.analyzeProduct(product);
+            const { lines, recommendation } = SmartAI.generateInsight(analysis, product);
+
+            document.getElementById('aiModalProductName').innerText = product.name;
+            document.getElementById('aiModalStoreBadge').innerText = product.store || 'Web';
+            document.getElementById('aiModalLink').href = product.url;
+
+            // Skor kartı
+            const scoreCard = document.getElementById('aiScoreCard');
+            const scoreColor = analysis.buyScore >= 60 ? 'emerald' : analysis.buyScore >= 30 ? 'amber' : 'rose';
+            scoreCard.className = `p-4 rounded-2xl border-2 border-${scoreColor}-500/40 bg-${scoreColor}-500/10`;
+            scoreCard.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-[10px] font-bold text-${scoreColor}-300 uppercase">${recommendation.label}</span>
+                    <span class="text-2xl font-black text-${scoreColor}-400">${analysis.buyScore}<span class="text-xs">/100</span></span>
+                </div>
+                <p class="text-xs text-slate-300">${recommendation.text}</p>
+                <div class="mt-2 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                    <div class="h-full bg-${scoreColor}-500 rounded-full transition-all" style="width: ${analysis.buyScore}%"></div>
+                </div>`;
+
+            // Analiz metni
+            document.getElementById('aiAnalysisText').innerHTML = lines.join('<br><br>');
+
+            // İstatistikler
+            const trendEl = document.getElementById('aiTrend');
+            if (analysis.trend === 'down') { trendEl.innerText = '📉 Düşüş'; trendEl.className = 'text-xs font-black text-emerald-400 mt-1'; }
+            else if (analysis.trend === 'up') { trendEl.innerText = '📈 Yükseliş'; trendEl.className = 'text-xs font-black text-rose-400 mt-1'; }
+            else { trendEl.innerText = '➖ Stabil'; trendEl.className = 'text-xs font-black text-slate-300 mt-1'; }
+
+            const riskEl = document.getElementById('aiRisk');
+            riskEl.innerText = analysis.riskScore;
+            riskEl.className = analysis.riskScore === 'Düşük' ? 'text-xs font-black text-emerald-400 mt-1' 
+                : analysis.riskScore === 'Yüksek' ? 'text-xs font-black text-rose-400 mt-1' 
+                : 'text-xs font-black text-amber-400 mt-1';
+
+            document.getElementById('aiSavings').innerText = analysis.potentialSavings > 0 ? formatMoney(analysis.potentialSavings) : '-';
+            document.getElementById('aiRemaining').innerText = analysis.isAtTarget ? 'ULAŞILDI' : formatMoney(analysis.remainingToTarget);
+
+            // Modal aç
+            document.getElementById('aiModal').classList.remove('hidden');
+            document.getElementById('aiModal').classList.add('flex');
+
+            // Grafik
+            renderAiChart(product, analysis);
+        };
+
+        window.closeAiModal = function() {
+            document.getElementById('aiModal').classList.add('hidden');
+            document.getElementById('aiModal').classList.remove('flex');
+            currentAiProduct = null;
+        };
+
+        window.aiAdvice = function(type) {
+            if (!currentAiProduct) return;
+            const analysis = SmartAI.analyzeProduct(currentAiProduct);
+            const textEl = document.getElementById('aiAnalysisText');
+            let text = '';
+
+            if (type === 'buy') {
+                if (analysis.isAtTarget) {
+                    text = `<b class="text-emerald-400">✅ ALIM TAVSİYESİ:</b> Hedef fiyata ulaşıldı. Bu fiyattan alım yapmanız mantıklı. Daha fazla düşüş beklemek riskli olabilir.`;
+                } else if (analysis.buyScore >= 50) {
+                    text = `<b class="text-emerald-400">✅ ALIM MAKUL:</b> Ürün hedefe yakın (%${analysis.remainingPercent.toFixed(1)} kaldı) ve trend olumlu. Küçük bir düşüş daha bekleyebilirsiniz, ancak bu fiyat da kabul edilebilir.`;
+                } else {
+                    text = `<b class="text-amber-400">⚠️ ALIM İÇİN ERKEN:</b> Hedefe daha %${analysis.remainingPercent.toFixed(1)} var. Şimdi almak yerine takipte kalmanız önerilir.`;
+                }
+            } else {
+                if (analysis.trend === 'up') {
+                    text = `<b class="text-rose-400">⚠️ BEKLEMEK RİSKLİ:</b> Fiyat yükseliş trendinde. Beklemek yerine mevcut fiyatı değerlendirmek veya hedefi güncellemek daha mantıklı olabilir.`;
+                } else if (analysis.trend === 'down') {
+                    text = `<b class="text-emerald-400">⏳ BEKLEMEK MANTIKLI:</b> Düşüş trendi devam ediyor. Hedefe %${analysis.remainingPercent.toFixed(1)} kaldı. Sabırlı olun.`;
+                } else {
+                    text = `<b class="text-slate-300">👀 NÖTR:</b> Fiyat stabil. Ne alım ne bekleme için güçlü bir sinyal yok. Takibe devam edin.`;
+                }
+            }
+
+            textEl.innerHTML = text;
+        };
+
+        function renderAiChart(product, analysis) {
+            const ctx = document.getElementById('aiChart').getContext('2d');
+            if (aiChartInstance) aiChartInstance.destroy();
+
+            // Fiyat geçmişi simülasyonu (init → curr)
+            const labels = ['İlk', 'Güncel'];
+            const data = [analysis.init, analysis.curr];
+
+            aiChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Fiyat (₺)',
+                        data,
+                        borderColor: analysis.trend === 'down' ? '#10b981' : analysis.trend === 'up' ? '#ef4444' : '#8b5cf6',
+                        backgroundColor: analysis.trend === 'down' ? 'rgba(16, 185, 129, 0.15)' : analysis.trend === 'up' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(139, 92, 246, 0.15)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#fff',
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { display: false } },
+                        y: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        }
+
+        // ============================================================
+        // SMART INSIGHT BANNER (Ana sayfada)
+        // ============================================================
+        function updateSmartInsight() {
+            const banner = document.getElementById('smartInsightBanner');
+            const textEl = document.getElementById('smartInsightText');
+
+            if (!allUserProducts.length) {
+                banner.classList.add('hidden');
+                return;
+            }
+
+            // En iyi fırsatı bul
+            let bestProduct = null;
+            let bestScore = 0;
+
+            allUserProducts.forEach(p => {
+                const a = SmartAI.analyzeProduct(p);
+                if (a.buyScore > bestScore) {
+                    bestScore = a.buyScore;
+                    bestProduct = { product: p, analysis: a };
+                }
+            });
+
+            if (!bestProduct) {
+                banner.classList.add('hidden');
+                return;
+            }
+
+            const { product, analysis } = bestProduct;
+            const rec = SmartAI.getRecommendation(analysis);
+
+            banner.classList.remove('hidden');
+            textEl.innerHTML = `
+                <b class="text-purple-300">En İyi Fırsat:</b> <b class="text-white">${product.name.substring(0, 40)}${product.name.length > 40 ? '...' : ''}</b> — 
+                ${rec.label} (Skor: <b class="text-purple-400">${analysis.buyScore}/100</b>)
+                <br><span class="text-[10px] text-slate-400 mt-1 block">${rec.text}</span>`;
+        }
+
+        // ============================================================
+        // FİYAT ÇEKİCİ (Çoklu proxy - önceki kodunuzdan)
+        // ============================================================
+        async function fetchRealPriceFromUrl(targetUrl, storeName) {
+            let finalUrl = targetUrl;
+            if (targetUrl.includes('amzn.eu') || targetUrl.includes('ty.gl') || targetUrl.includes('amzn.to')) {
+                try {
+                    const unshorten = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`);
+                    const d = await unshorten.json();
+                    if (d && d.status && d.status.url) finalUrl = d.status.url;
+                } catch(e){}
+            }
+
+            const proxyList = [
+                { name: 'allorigins', build: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`, extract: async (res) => { const d = await res.json(); return d.contents || ''; } },
+                { name: 'corsproxy.io', build: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`, extract: async (res) => await res.text() },
+                { name: 'codetabs', build: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`, extract: async (res) => await res.text() },
+                { name: 'allorigins-raw', build: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`, extract: async (res) => await res.text() }
+            ];
+
+            for (let proxy of proxyList) {
+                try {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 8000);
+                    const res = await fetch(proxy.build(finalUrl), { signal: controller.signal });
+                    clearTimeout(timer);
+                    if (!res.ok) continue;
+                    const html = await proxy.extract(res);
+                    if (!html || html.length < 500) continue;
+                    const result = parsePriceFromHtml(html, finalUrl, storeName);
+                    if (result && result.price) return result;
+                } catch (err) { continue; }
+            }
+            return null;
+        }
+
+        function parsePriceFromHtml(html, finalUrl, storeName) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            let title = "";
+            const titleEl = doc.querySelector('#productTitle') || doc.querySelector('h1') || doc.querySelector('title');
+            if (titleEl) {
+                title = titleEl.textContent.trim().replace('Amazon.com.tr:', '').replace('Trendyol', '').split('|')[0].trim().substring(0, 150);
+            }
+
+            let price = null;
+
+            const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+            for (let s of scripts) {
+                try {
+                    const json = JSON.parse(s.textContent);
+                    const items = Array.isArray(json) ? json : [json];
+                    for (let item of items) {
+                        if (item.offers) {
+                            const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
+                            if (offer.price) { price = parseFloat(offer.price); break; }
+                            if (offer.lowPrice) { price = parseFloat(offer.lowPrice); break; }
+                        }
+                    }
+                    if (price) break;
+                } catch(e){}
+            }
+
+            if (!price) {
+                const meta = doc.querySelector('meta[property="product:price:amount"]') || doc.querySelector('meta[property="og:price:amount"]');
+                if (meta && meta.content) price = parseFloat(meta.content.replace(',', '.'));
+            }
+
+            if (!price) {
+                let priceText = "";
+                const url = finalUrl.toLowerCase();
+                if (url.includes('trendyol')) {
+                    const el = doc.querySelector('.prc-dsc') || doc.querySelector('.prc-slg');
+                    if (el) priceText = el.textContent;
+                } else if (url.includes('amazon')) {
+                    const el = doc.querySelector('.a-price-whole') || doc.querySelector('.a-offscreen');
+                    if (el) priceText = el.textContent;
+                } else if (url.includes('hepsiburada')) {
+                    const el = doc.querySelector('[data-test-id="price-current-price"]');
+                    if (el) priceText = el.textContent;
+                }
+                if (priceText) {
+                    const clean = priceText.replace(/[^\d,.]/g, '').replace(/\./g, '').replace(',', '.');
+                    price = parseFloat(clean);
+                }
+            }
+
+            if (price && !isNaN(price) && price > 0) return { price, title };
+            return null;
+        }
+
+        // ============================================================
+        // FORM HELPERS
+        // ============================================================
+        window.setTargetPercent = function(rate) {
+            selectedDiscountRate = rate;
+            [0.05, 0.10, 0.15].forEach(r => {
+                const btn = document.getElementById(`targetBtn-${Math.round(r*100)}`);
+                if (btn) {
+                    if (r === rate) btn.className = "btn-interact py-2.5 bg-orange-500/20 text-orange-400 rounded-xl text-[10px] font-bold border border-orange-500/30";
+                    else btn.className = "btn-interact py-2.5 bg-slate-800 text-slate-300 rounded-xl text-[10px] font-bold border border-slate-700";
+                }
+            });
+            const cPrice = parseFloat(document.getElementById('pCurrent').value);
+            if (!isNaN(cPrice) && cPrice > 0) {
+                document.getElementById('pTarget').value = (cPrice * (1 - rate)).toFixed(2);
+            }
+        };
+
+        window.autoFetchProductDetails = function(url) {
+            clearTimeout(debounceTimer);
+            const banner = document.getElementById('statusBanner');
+            if (!url || !url.startsWith('http')) { banner.classList.add('hidden'); return; }
+
+            debounceTimer = setTimeout(async () => {
+                const spinner = document.getElementById('fetchSpinner');
+                const nameInput = document.getElementById('pName');
+                const priceInput = document.getElementById('pCurrent');
+                const targetInput = document.getElementById('pTarget');
+                const storeInput = document.getElementById('pStore');
+
+                spinner.classList.remove('hidden');
+                banner.className = "p-3.5 rounded-2xl text-[11px] font-medium flex items-center gap-2.5 animate-slide-up bg-blue-500/10 text-blue-300 border-blue-500/20 border";
+                banner.innerHTML = `<i class="fa-solid fa-bolt fa-spin text-blue-400"></i> Çoklu proxy deneniyor...`;
+                banner.classList.remove('hidden');
+
+                let detectedStore = 'Diğer';
+                if (url.includes('trendyol.com') || url.includes('ty.gl')) detectedStore = 'Trendyol';
+                else if (url.includes('amazon.com') || url.includes('amzn.eu') || url.includes('amzn.to')) detectedStore = 'Amazon TR';
+                else if (url.includes('hepsiburada.com')) detectedStore = 'Hepsiburada';
+                storeInput.value = detectedStore;
+
+                const realResult = await fetchRealPriceFromUrl(url, detectedStore);
+                spinner.classList.add('hidden');
+
+                if (realResult && realResult.price) {
+                    if (realResult.title && realResult.title.length > 3) nameInput.value = realResult.title;
+                    priceInput.value = realResult.price;
+                    targetInput.value = (realResult.price * (1 - selectedDiscountRate)).toFixed(2);
+                    banner.className = "p-3.5 rounded-2xl text-[11px] font-medium flex items-center justify-between animate-slide-up bg-emerald-500/10 text-emerald-400 border-emerald-500/20 border";
+                    banner.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-400"></i><span>Canlı Fiyat:</span></div><span class="font-black text-sm text-white font-mono bg-emerald-500/20 px-2.5 py-1 rounded-lg">${formatMoney(realResult.price)}</span>`;
+                } else {
+                    priceInput.value = "";
+                    targetInput.value = "";
+                    banner.className = "p-3.5 rounded-2xl text-[11px] font-medium flex flex-col gap-2 animate-slide-up bg-amber-500/10 text-amber-300 border-amber-500/20 border";
+                    banner.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-amber-400"></i><span>Fiyat alınamadı.</span></div><button type="button" onclick="autoFetchProductDetails('${url}')" class="btn-interact bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg text-[10px] font-bold self-start"><i class="fa-solid fa-rotate"></i> Tekrar Dene</button>`;
+                }
+            }, 400);
+        };
+
+        // ============================================================
+        // KEŞFET ARAMA
+        // ============================================================
+        window.runSearch = async function() {
+            const query = document.getElementById('aiSearchQuery').value.trim();
+            const container = document.getElementById('aiSearchResults');
+            if (!query) return;
+
+            container.innerHTML = `<div class="glass-card p-6 rounded-3xl text-center border border-slate-800 space-y-3"><i class="fa-solid fa-bolt fa-spin text-2xl text-blue-400"></i><p class="text-xs text-slate-300 font-bold">Aranıyor...</p></div>`;
+
+            try {
+                const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' trendyol amazon')}`;
+                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(searchUrl)}`);
+                const data = await res.json();
+                let foundItems = [];
+                if (data && data.contents) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(data.contents, 'text/html');
+                    doc.querySelectorAll('.result').forEach(r => {
+                        const titleEl = r.querySelector('.result__title a');
+                        if (titleEl && titleEl.textContent) {
+                            const titleText = titleEl.textContent.trim();
+                            let store = "Web";
+                            const lower = titleText.toLowerCase();
+                            if (lower.includes('trendyol')) store = "Trendyol";
+                            else if (lower.includes('amazon')) store = "Amazon TR";
+                            else if (lower.includes('hepsiburada')) store = "Hepsiburada";
+                            foundItems.push({ name: titleText.substring(0, 100), store, url: titleEl.href || '#' });
+                        }
+                    });
+                }
+                if (foundItems.length > 0) {
+                    container.innerHTML = '';
+                    foundItems.slice(0, 5).forEach((res) => {
+                        container.innerHTML += `<div class="glass-card p-4 rounded-3xl border border-slate-800 animate-slide-up"><span class="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-800 text-blue-400 border border-slate-700">${res.store}</span><h4 class="text-xs font-bold text-white leading-snug line-clamp-2 mt-2">${res.name}</h4><div class="flex gap-2 mt-3"><button onclick="quickAdd('${res.name.replace(/'/g, "\\'")}', '${res.url}')" class="btn-interact flex-1 axion-gradient text-white text-[10px] font-bold py-2 rounded-xl"><i class="fa-solid fa-plus text-[9px]"></i> Radara Ekle</button><a href="${res.url}" target="_blank" class="btn-interact bg-slate-800 text-slate-300 p-2 rounded-xl text-xs"><i class="fa-solid fa-arrow-up-right-from-square"></i></a></div></div>`;
+                    });
+                } else throw new Error();
+            } catch (err) {
+                container.innerHTML = `<div class="glass-card p-5 rounded-3xl border border-slate-800 text-center text-xs text-slate-400">Sonuç bulunamadı.</div>`;
+            }
+        };
+
+        window.quickAdd = function(name, url) {
+            document.getElementById('pUrl').value = url;
+            document.getElementById('pName').value = name;
+            autoFetchProductDetails(url);
+            switchTab('add');
+            showToast("Fiyat çekiliyor...", "info");
+        };
+
+        // ============================================================
+        // FİYAT YENİLEME
+        // ============================================================
+        window.refreshAllPrices = async function() {
+            const refreshBtn = document.getElementById('refreshAllBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
+            refreshIcon.classList.add('fa-spin');
+            refreshBtn.disabled = true;
+            let updatedCount = 0;
+            for (let product of allUserProducts) {
+                if (product.url && product.url.startsWith('http')) {
+                    const res = await fetchRealPriceFromUrl(product.url, product.store);
+                    if (res && res.price && res.price !== parseFloat(product.current_price)) {
+                        await db.from('products').update({ current_price: res.price }).eq('id', product.id);
+                        updatedCount++;
+                    }
+                }
+            }
+            refreshIcon.classList.remove('fa-spin');
+            refreshBtn.disabled = false;
+            showToast(updatedCount > 0 ? `${updatedCount} fiyat güncellendi!` : "Tüm fiyatlar güncel.", "success");
+            loadProducts();
+        };
+
+        window.refreshSinglePrice = async function(id, url, store) {
+            showToast("Güncelleniyor...", "info");
+            const res = await fetchRealPriceFromUrl(url, store);
+            if (res && res.price) {
+                await db.from('products').update({ current_price: res.price }).eq('id', id);
+                showToast(`Güncel: ${formatMoney(res.price)}`, "success");
+                loadProducts();
+            } else showToast("Güncellenemedi.", "error");
+        };
+
+        // ============================================================
+        // AUTH & INIT
+        // ============================================================
         document.addEventListener('DOMContentLoaded', () => {
-            const SUPABASE_URL = "https://rgrborzdgbslwmixszyl.supabase.co";
-            const SUPABASE_ANON_KEY = "sb_publishable_UqT3G_hrhUFarwUEZ6UBxA_BWZpfWHw";
-            const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
                 auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
             });
-            
-            let currentUser = null;
-            let currentAuthMode = 'login';
-            let allUserProducts = [];
-            let priceChartInstance = null;
-            let debounceTimer = null;
-            let selectedDiscountRate = 0.10;
 
-            const formatMoney = (amount) => {
-                const num = parseFloat(amount) || 0;
-                return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 }).format(num);
-            };
-
-            window.showToast = function(message, type = 'info') {
-                const container = document.getElementById('toastContainer');
-                const toast = document.createElement('div');
-                const styles = {
-                    success: 'bg-emerald-950/90 border-emerald-500/50 text-emerald-100',
-                    error: 'bg-rose-950/90 border-rose-500/50 text-rose-100',
-                    info: 'bg-slate-900/90 border-orange-500/50 text-slate-100'
-                };
-                const icons = {
-                    success: 'fa-circle-check text-emerald-400',
-                    error: 'fa-circle-xmark text-rose-400',
-                    info: 'fa-circle-info text-orange-400'
-                };
-                toast.className = `glass-card ${styles[type]} p-3.5 rounded-2xl border text-[11px] font-medium flex items-center gap-3 shadow-lg backdrop-blur-md animate-toast pointer-events-auto`;
-                toast.innerHTML = `<i class="fa-solid ${icons[type]} text-lg"></i> <span class="flex-1">${message}</span>`;
-                container.appendChild(toast);
-                setTimeout(() => {
-                    toast.style.opacity = '0';
-                    toast.style.transform = 'translateY(-10px) scale(0.95)';
-                    toast.style.transition = 'all 0.3s ease';
-                    setTimeout(() => toast.remove(), 300);
-                }, 3500);
-            };
-
-            const customConfirm = (message) => {
-                return new Promise((resolve) => {
-                    const modal = document.getElementById('customConfirmModal');
-                    const msgEl = document.getElementById('confirmMessage');
-                    const btnYes = document.getElementById('confirmActionBtn');
-                    const btnNo = document.getElementById('confirmCancelBtn');
-                    msgEl.innerText = message;
-                    modal.classList.remove('hidden'); modal.classList.add('flex');
-                    const cleanup = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); btnYes.removeEventListener('click', onYes); btnNo.removeEventListener('click', onNo); };
-                    const onYes = () => { cleanup(); resolve(true); };
-                    const onNo = () => { cleanup(); resolve(false); };
-                    btnYes.addEventListener('click', onYes);
-                    btnNo.addEventListener('click', onNo);
-                });
-            };
-
-            window.pasteFromClipboard = async function() {
-                try {
-                    const text = await navigator.clipboard.readText();
-                    if (text && text.startsWith('http')) {
-                        document.getElementById('pUrl').value = text;
-                        autoFetchProductDetails(text);
-                        showToast("Yapıştırıldı! Fiyat çekiliyor...", "success");
-                    } else {
-                        showToast("Panoda link yok.", "info");
-                    }
-                } catch (err) {
-                    showToast("Pano izni gerekli.", "info");
-                }
-            };
-
-            window.setTargetPercent = function(rate) {
-                selectedDiscountRate = rate;
-                [0.05, 0.10, 0.15].forEach(r => {
-                    const btn = document.getElementById(`targetBtn-${Math.round(r*100)}`);
-                    if (btn) {
-                        if (r === rate) {
-                            btn.className = "btn-interact py-2.5 bg-orange-500/20 text-orange-400 rounded-xl text-[10px] font-bold border border-orange-500/30";
-                        } else {
-                            btn.className = "btn-interact py-2.5 bg-slate-800 text-slate-300 rounded-xl text-[10px] font-bold border border-slate-700";
-                        }
-                    }
-                });
-                const cPrice = parseFloat(document.getElementById('pCurrent').value);
-                if (!isNaN(cPrice) && cPrice > 0) {
-                    document.getElementById('pTarget').value = (cPrice * (1 - rate)).toFixed(2);
-                }
-            };
-
-            // ============ ÇOKLU PROXY FİYAT ÇEKİCİ ============
-            async function fetchRealPriceFromUrl(targetUrl, storeName) {
-                let finalUrl = targetUrl;
-                
-                // Kısa link çözme
-                if (targetUrl.includes('amzn.eu') || targetUrl.includes('ty.gl') || targetUrl.includes('amzn.to')) {
-                    try {
-                        const unshorten = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`);
-                        const d = await unshorten.json();
-                        if (d && d.status && d.status.url) finalUrl = d.status.url;
-                    } catch(e){}
-                }
-
-                // Çoklu proxy listesi
-                const proxyList = [
-                    {
-                        name: 'allorigins',
-                        build: (u) => `https://api.allorigins.win/get?url=${encodeURIComponent(u)}`,
-                        extract: async (res) => { const d = await res.json(); return d.contents || ''; }
-                    },
-                    {
-                        name: 'corsproxy.io',
-                        build: (u) => `https://corsproxy.io/?${encodeURIComponent(u)}`,
-                        extract: async (res) => await res.text()
-                    },
-                    {
-                        name: 'codetabs',
-                        build: (u) => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`,
-                        extract: async (res) => await res.text()
-                    },
-                    {
-                        name: 'thingproxy',
-                        build: (u) => `https://thingproxy.freeboard.io/fetch/${u}`,
-                        extract: async (res) => await res.text()
-                    },
-                    {
-                        name: 'allorigins-raw',
-                        build: (u) => `https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`,
-                        extract: async (res) => await res.text()
-                    }
-                ];
-
-                // Her proxy'yi sırayla dene
-                for (let proxy of proxyList) {
-                    try {
-                        console.log(`[Proxy] Deniyor: ${proxy.name}`);
-                        
-                        const controller = new AbortController();
-                        const timer = setTimeout(() => controller.abort(), 8000);
-                        
-                        const res = await fetch(proxy.build(finalUrl), { signal: controller.signal });
-                        clearTimeout(timer);
-
-                        if (!res.ok) {
-                            console.log(`[Proxy] ${proxy.name} HTTP ${res.status}`);
-                            continue;
-                        }
-
-                        const html = await proxy.extract(res);
-                        
-                        if (!html || html.length < 500) {
-                            console.log(`[Proxy] ${proxy.name} boş içerik`);
-                            continue;
-                        }
-
-                        const result = parsePriceFromHtml(html, finalUrl, storeName);
-                        
-                        if (result && result.price) {
-                            console.log(`[Proxy] ✅ ${proxy.name} başarılı: ${result.price} TL`);
-                            return result;
-                        } else {
-                            console.log(`[Proxy] ${proxy.name} fiyat bulamadı`);
-                        }
-                        
-                    } catch (err) {
-                        console.log(`[Proxy] ${proxy.name} hata: ${err.message}`);
-                        continue;
-                    }
-                }
-
-                console.log('[Proxy] ❌ Tüm proxy\'ler başarısız');
-                return null;
-            }
-
-            // HTML'den fiyat çıkarma
-            function parsePriceFromHtml(html, finalUrl, storeName) {
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(html, 'text/html');
-
-                // Başlık
-                let title = "";
-                const titleEl = doc.querySelector('#productTitle') || doc.querySelector('h1') || doc.querySelector('title');
-                if (titleEl) {
-                    title = titleEl.textContent.trim()
-                        .replace('Amazon.com.tr:', '')
-                        .replace('Trendyol', '')
-                        .replace('Hepsiburada', '')
-                        .split('|')[0]
-                        .trim()
-                        .substring(0, 150);
-                }
-
-                let price = null;
-
-                // 1) JSON-LD (en güvenilir)
-                const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
-                for (let s of scripts) {
-                    try {
-                        const json = JSON.parse(s.textContent);
-                        const items = Array.isArray(json) ? json : [json];
-                        for (let item of items) {
-                            if (item.offers) {
-                                const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
-                                if (offer.price) { price = parseFloat(offer.price); break; }
-                                if (offer.lowPrice) { price = parseFloat(offer.lowPrice); break; }
-                            }
-                        }
-                        if (price) break;
-                    } catch(e){}
-                }
-
-                // 2) Meta tag
-                if (!price) {
-                    const meta = doc.querySelector('meta[property="product:price:amount"]') 
-                        || doc.querySelector('meta[property="og:price:amount"]');
-                    if (meta && meta.content) {
-                        price = parseFloat(meta.content.replace(',', '.'));
-                    }
-                }
-
-                // 3) Site-spesifik selector
-                if (!price) {
-                    let priceText = "";
-                    const url = finalUrl.toLowerCase();
-                    
-                    if (url.includes('trendyol')) {
-                        const el = doc.querySelector('.prc-dsc') || doc.querySelector('.prc-slg') || doc.querySelector('[class*="price"]');
-                        if (el) priceText = el.textContent;
-                    } else if (url.includes('amazon')) {
-                        const el = doc.querySelector('.a-price-whole') || doc.querySelector('.a-offscreen');
-                        if (el) priceText = el.textContent;
-                    } else if (url.includes('hepsiburada')) {
-                        const el = doc.querySelector('[data-test-id="price-current-price"]');
-                        if (el) priceText = el.textContent;
-                    }
-                    
-                    if (priceText) {
-                        const clean = priceText.replace(/[^\d,.]/g, '').replace(/\./g, '').replace(',', '.');
-                        price = parseFloat(clean);
-                    }
-                }
-
-                if (price && !isNaN(price) && price > 0) {
-                    return { price, title };
-                }
-                return null;
-            }
-
-            window.autoFetchProductDetails = function(url) {
-                clearTimeout(debounceTimer);
-                const banner = document.getElementById('statusBanner');
-                if (!url || !url.startsWith('http')) {
-                    banner.classList.add('hidden');
-                    return;
-                }
-
-                debounceTimer = setTimeout(async () => {
-                    const spinner = document.getElementById('fetchSpinner');
-                    const nameInput = document.getElementById('pName');
-                    const priceInput = document.getElementById('pCurrent');
-                    const targetInput = document.getElementById('pTarget');
-                    const storeInput = document.getElementById('pStore');
-
-                    spinner.classList.remove('hidden');
-                    banner.className = "p-3.5 rounded-2xl text-[11px] font-medium flex items-center gap-2.5 animate-slide-up bg-blue-500/10 text-blue-300 border-blue-500/20 border";
-                    banner.innerHTML = `<i class="fa-solid fa-bolt fa-spin text-blue-400"></i> Çoklu proxy deneniyor...`;
-                    banner.classList.remove('hidden');
-
-                    let detectedStore = 'Diğer';
-                    if (url.includes('trendyol.com') || url.includes('ty.gl')) detectedStore = 'Trendyol';
-                    else if (url.includes('amazon.com') || url.includes('amzn.eu') || url.includes('amzn.to')) detectedStore = 'Amazon TR';
-                    else if (url.includes('hepsiburada.com')) detectedStore = 'Hepsiburada';
-                    storeInput.value = detectedStore;
-
-                    const realResult = await fetchRealPriceFromUrl(url, detectedStore);
-                    spinner.classList.add('hidden');
-
-                    if (realResult && realResult.price) {
-                        if (realResult.title && realResult.title.length > 3) nameInput.value = realResult.title;
-                        priceInput.value = realResult.price;
-                        targetInput.value = (realResult.price * (1 - selectedDiscountRate)).toFixed(2);
-                        
-                        banner.className = "p-3.5 rounded-2xl text-[11px] font-medium flex items-center justify-between animate-slide-up bg-emerald-500/10 text-emerald-400 border-emerald-500/20 border";
-                        banner.innerHTML = `
-                            <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-circle-check text-emerald-400"></i>
-                                <span>Canlı Fiyat:</span>
-                            </div>
-                            <span class="font-black text-sm text-white font-mono bg-emerald-500/20 px-2.5 py-1 rounded-lg">${formatMoney(realResult.price)}</span>`;
-                    } else {
-                        priceInput.value = "";
-                        targetInput.value = "";
-                        banner.className = "p-3.5 rounded-2xl text-[11px] font-medium flex flex-col gap-2 animate-slide-up bg-amber-500/10 text-amber-300 border-amber-500/20 border";
-                        banner.innerHTML = `
-                            <div class="flex items-center gap-2">
-                                <i class="fa-solid fa-triangle-exclamation text-amber-400"></i>
-                                <span>Tüm proxy'ler denendi, fiyat alınamadı.</span>
-                            </div>
-                            <button type="button" onclick="autoFetchProductDetails('${url}')" class="btn-interact bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-lg text-[10px] font-bold self-start">
-                                <i class="fa-solid fa-rotate"></i> Tekrar Dene
-                            </button>`;
-                    }
-                }, 400);
-            };
-
-            // Keşfet arama
-            window.runAiSearch = async function() {
-                const query = document.getElementById('aiSearchQuery').value.trim();
-                const container = document.getElementById('aiSearchResults');
-                if (!query) return;
-
-                container.innerHTML = `
-                    <div class="glass-card p-6 rounded-3xl text-center border border-slate-800 space-y-3">
-                        <i class="fa-solid fa-bolt fa-spin text-2xl text-blue-400"></i>
-                        <p class="text-xs text-slate-300 font-bold">Aranıyor...</p>
-                    </div>`;
-
-                try {
-                    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' trendyol amazon')}`;
-                    const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(searchUrl)}`);
-                    const data = await res.json();
-                    
-                    let foundItems = [];
-                    if (data && data.contents) {
-                        const parser = new DOMParser();
-                        const doc = parser.parseFromString(data.contents, 'text/html');
-                        const results = doc.querySelectorAll('.result');
-                        
-                        results.forEach(r => {
-                            const titleEl = r.querySelector('.result__title a');
-                            if (titleEl && titleEl.textContent) {
-                                const titleText = titleEl.textContent.trim();
-                                let store = "Web";
-                                const lower = titleText.toLowerCase();
-                                if (lower.includes('trendyol')) store = "Trendyol";
-                                else if (lower.includes('amazon')) store = "Amazon TR";
-                                else if (lower.includes('hepsiburada')) store = "Hepsiburada";
-                                
-                                foundItems.push({
-                                    name: titleText.substring(0, 100),
-                                    store,
-                                    url: titleEl.href || 'https://www.google.com'
-                                });
-                            }
-                        });
-                    }
-
-                    if (foundItems.length > 0) {
-                        container.innerHTML = '';
-                        foundItems.slice(0, 5).forEach((res) => {
-                            container.innerHTML += `
-                                <div class="glass-card p-4 rounded-3xl border border-slate-800 animate-slide-up">
-                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-800 text-blue-400 border border-slate-700">${res.store}</span>
-                                    <h4 class="text-xs font-bold text-white leading-snug line-clamp-2 mt-2">${res.name}</h4>
-                                    <div class="flex gap-2 mt-3">
-                                        <button onclick="quickAdd('${res.name.replace(/'/g, "\\'")}', '${res.url}')" class="btn-interact flex-1 axion-gradient text-white text-[10px] font-bold py-2 rounded-xl">
-                                            <i class="fa-solid fa-plus text-[9px]"></i> Radara Ekle
-                                        </button>
-                                        <a href="${res.url}" target="_blank" class="btn-interact bg-slate-800 text-slate-300 p-2 rounded-xl text-xs">
-                                            <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                                        </a>
-                                    </div>
-                                </div>`;
-                        });
-                    } else {
-                        throw new Error();
-                    }
-                } catch (err) {
-                    container.innerHTML = `<div class="glass-card p-5 rounded-3xl border border-slate-800 text-center text-xs text-slate-400">Sonuç bulunamadı.</div>`;
-                }
-            };
-
-            window.quickAdd = function(name, url) {
-                document.getElementById('pUrl').value = url;
-                document.getElementById('pName').value = name;
-                autoFetchProductDetails(url);
-                switchTab('add');
-                showToast("Fiyat çekiliyor...", "info");
-            };
-
-            window.refreshAllPrices = async function() {
-                const refreshBtn = document.getElementById('refreshAllBtn');
-                const refreshIcon = document.getElementById('refreshIcon');
-                refreshIcon.classList.add('fa-spin');
-                refreshBtn.disabled = true;
-
-                let updatedCount = 0;
-                for (let product of allUserProducts) {
-                    if (product.url && product.url.startsWith('http')) {
-                        const res = await fetchRealPriceFromUrl(product.url, product.store);
-                        if (res && res.price && res.price !== parseFloat(product.current_price)) {
-                            await db.from('products').update({ current_price: res.price }).eq('id', product.id);
-                            updatedCount++;
-                        }
-                    }
-                }
-
-                refreshIcon.classList.remove('fa-spin');
-                refreshBtn.disabled = false;
-                showToast(updatedCount > 0 ? `${updatedCount} fiyat güncellendi!` : "Tüm fiyatlar güncel.", "success");
-                loadProducts();
-            };
-
-            window.refreshSinglePrice = async function(id, url, store) {
-                showToast("Güncelleniyor...", "info");
-                const res = await fetchRealPriceFromUrl(url, store);
-                if (res && res.price) {
-                    await db.from('products').update({ current_price: res.price }).eq('id', id);
-                    showToast(`Güncel: ${formatMoney(res.price)}`, "success");
-                    loadProducts();
-                } else {
-                    showToast("Fiyat güncellenemedi.", "error");
-                }
-            };
-
-            // ============ AUTH ============
             const btnLogin = document.getElementById('tabLoginBtn');
             const btnRegister = document.getElementById('tabRegisterBtn');
-            
             btnLogin.addEventListener('click', () => setAuthMode('login'));
             btnRegister.addEventListener('click', () => setAuthMode('register'));
 
             db.auth.onAuthStateChange((event, session) => {
-                console.log('Auth event:', event);
                 if (event === 'SIGNED_IN' && session?.user) {
                     currentUser = session.user;
                     document.getElementById('authModal').classList.add('hidden');
@@ -778,7 +812,6 @@
                 const confirmGroup = document.getElementById('confirmPasswordGroup');
                 const confirmInput = document.getElementById('authConfirmPassword');
                 const mainBtn = document.getElementById('mainAuthBtn');
-
                 if (mode === 'login') {
                     btnLogin.className = "btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl bg-orange-500 text-white shadow-md";
                     btnRegister.className = "btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl text-slate-400 hover:text-white";
@@ -805,9 +838,7 @@
                         document.getElementById('authModal').classList.remove('hidden');
                         document.getElementById('appContent').classList.add('hidden');
                     }
-                } catch(e) {
-                    document.getElementById('authModal').classList.remove('hidden');
-                }
+                } catch(e) { document.getElementById('authModal').classList.remove('hidden'); }
             }
 
             document.getElementById('authForm').addEventListener('submit', async (e) => {
@@ -815,16 +846,13 @@
                 const email = document.getElementById('authEmail').value.trim();
                 const password = document.getElementById('authPassword').value;
                 const mainBtn = document.getElementById('mainAuthBtn');
-
                 mainBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <span>İşleniyor...</span>`;
                 mainBtn.disabled = true;
-
                 try {
                     if (currentAuthMode === 'register') {
                         const confirmPass = document.getElementById('authConfirmPassword').value;
                         if (password !== confirmPass) throw new Error("Şifreler eşleşmiyor!");
                         if (password.length < 6) throw new Error("Şifre en az 6 karakter!");
-
                         const { error } = await db.auth.signUp({ email, password });
                         if (error) throw error;
                         showToast("Kayıt başarılı! Giriş yapabilirsiniz.", "success");
@@ -832,7 +860,6 @@
                     } else {
                         const { data, error } = await db.auth.signInWithPassword({ email, password });
                         if (error) throw error;
-                        
                         document.getElementById('authForm').reset();
                         showToast("Giriş başarılı!", "success");
                         if (data.session) {
@@ -843,212 +870,130 @@
                             loadProducts();
                         }
                     }
-                } catch(err) {
-                    showToast(err.message || "İşlem başarısız.", "error");
-                } finally {
-                    mainBtn.disabled = false;
-                    setAuthMode(currentAuthMode);
-                }
+                } catch(err) { showToast(err.message || "İşlem başarısız.", "error"); }
+                finally { mainBtn.disabled = false; setAuthMode(currentAuthMode); }
             });
 
-            window.logout = async function() {
-                await db.auth.signOut();
-                currentUser = null;
-                showToast("Oturum kapatıldı.", "info");
-                checkAuth();
-            };
+            checkAuth();
+        });
 
-            window.switchTab = function(tab) {
-                ['home', 'add', 'discover'].forEach(t => {
-                    const tabEl = document.getElementById(`tab-${t}`);
-                    const navEl = document.getElementById(`nav-${t}`);
-                    if (tabEl) tabEl.classList.add('hidden');
-                    if (navEl) {
-                        navEl.classList.remove('text-orange-500', 'text-blue-400');
-                        navEl.classList.add('text-slate-500');
-                    }
-                });
-                const activeTab = document.getElementById(`tab-${tab}`);
-                const activeNav = document.getElementById(`nav-${tab}`);
-                if (activeTab) activeTab.classList.remove('hidden');
-                if (activeNav) {
-                    activeNav.classList.add(tab === 'discover' ? 'text-blue-400' : 'text-orange-500');
-                    activeNav.classList.remove('text-slate-500');
-                }
-                if(tab === 'home') loadProducts();
-            };
+        window.logout = async function() {
+            await db.auth.signOut();
+            currentUser = null;
+            showToast("Oturum kapatıldı.", "info");
+        };
 
-            async function loadProducts() {
-                if (!currentUser) return;
-                const container = document.getElementById('productList');
-                container.innerHTML = `<div class="glass-card p-4 rounded-3xl skeleton h-28"></div>`.repeat(2);
+        window.switchTab = function(tab) {
+            ['home', 'add', 'discover'].forEach(t => {
+                const tabEl = document.getElementById(`tab-${t}`);
+                const navEl = document.getElementById(`nav-${t}`);
+                if (tabEl) tabEl.classList.add('hidden');
+                if (navEl) { navEl.classList.remove('text-orange-500', 'text-blue-400'); navEl.classList.add('text-slate-500'); }
+            });
+            const activeTab = document.getElementById(`tab-${tab}`);
+            const activeNav = document.getElementById(`nav-${tab}`);
+            if (activeTab) activeTab.classList.remove('hidden');
+            if (activeNav) { activeNav.classList.add(tab === 'discover' ? 'text-blue-400' : 'text-orange-500'); activeNav.classList.remove('text-slate-500'); }
+            if(tab === 'home') loadProducts();
+        };
 
-                try {
-                    const { data, error } = await db.from('products').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-                    if (error) throw error;
-                    allUserProducts = data || [];
-                    renderProductList(allUserProducts);
-                } catch (err) {
-                    container.innerHTML = `<div class="text-center py-10 text-xs text-rose-400">Veriler yüklenemedi.</div>`;
-                }
+        async function loadProducts() {
+            if (!currentUser) return;
+            const container = document.getElementById('productList');
+            container.innerHTML = `<div class="glass-card p-4 rounded-3xl skeleton h-28"></div>`.repeat(2);
+            try {
+                const { data, error } = await db.from('products').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+                if (error) throw error;
+                allUserProducts = data || [];
+                renderProductList(allUserProducts);
+                updateSmartInsight();
+            } catch (err) {
+                container.innerHTML = `<div class="text-center py-10 text-xs text-rose-400">Veriler yüklenemedi.</div>`;
             }
+        }
 
-            window.filterProducts = function() {
-                const query = document.getElementById('searchInput').value.toLowerCase();
-                const filtered = allUserProducts.filter(p => 
-                    (p.name || '').toLowerCase().includes(query) || 
-                    (p.store || '').toLowerCase().includes(query)
-                );
-                renderProductList(filtered);
-            };
+        window.filterProducts = function() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = allUserProducts.filter(p => (p.name || '').toLowerCase().includes(query) || (p.store || '').toLowerCase().includes(query));
+            renderProductList(filtered);
+        };
 
-            function renderProductList(products) {
-                const container = document.getElementById('productList');
-                let targetHits = 0, totalSavings = 0;
+        function renderProductList(products) {
+            const container = document.getElementById('productList');
+            let targetHits = 0, totalSavings = 0;
+            allUserProducts.forEach(item => {
+                const curr = parseFloat(item.current_price) || 0;
+                const tgt = parseFloat(item.target_price) || 0;
+                const init = parseFloat(item.initial_price) || curr;
+                if (curr <= tgt) targetHits++;
+                if (curr < init) totalSavings += (init - curr);
+            });
+            document.getElementById('productCount').innerText = allUserProducts.length;
+            document.getElementById('targetHitCount').innerText = targetHits;
+            document.getElementById('totalSavings').innerText = formatMoney(totalSavings);
+            container.innerHTML = '';
+            if (products.length === 0) {
+                container.innerHTML = `<div class="text-center py-12 glass-card rounded-3xl animate-fade-in border-dashed border-slate-800"><div class="w-14 h-14 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fa-solid fa-radar text-2xl text-slate-500"></i></div><p class="text-xs text-slate-400 font-medium">Radarda ürün yok.</p></div>`;
+                return;
+            }
+            products.forEach((item) => {
+                const curr = parseFloat(item.current_price) || 0;
+                const tgt = parseFloat(item.target_price) || 0;
+                const isHit = curr <= tgt;
+                const analysis = SmartAI.analyzeProduct(item);
+                const rec = SmartAI.getRecommendation(analysis);
+                const badgeColor = isHit ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800/80 text-orange-400 border-slate-700';
+                const priceColor = isHit ? 'text-emerald-400' : 'text-slate-100';
+                const safeName = (item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-                allUserProducts.forEach(item => {
-                    const curr = parseFloat(item.current_price) || 0;
-                    const tgt = parseFloat(item.target_price) || 0;
-                    const init = parseFloat(item.initial_price) || curr;
-                    if (curr <= tgt) targetHits++;
-                    if (curr < init) totalSavings += (init - curr);
-                });
-
-                document.getElementById('productCount').innerText = allUserProducts.length;
-                document.getElementById('targetHitCount').innerText = targetHits;
-                document.getElementById('totalSavings').innerText = formatMoney(totalSavings);
-                
-                container.innerHTML = '';
-
-                if (products.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center py-12 glass-card rounded-3xl animate-fade-in border-dashed border-slate-800">
-                            <div class="w-14 h-14 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-3">
-                                <i class="fa-solid fa-radar text-2xl text-slate-500"></i>
-                            </div>
-                            <p class="text-xs text-slate-400 font-medium">Radarda ürün yok.</p>
-                        </div>`;
-                    return;
-                }
-
-                products.forEach((item) => {
-                    const curr = parseFloat(item.current_price) || 0;
-                    const tgt = parseFloat(item.target_price) || 0;
-                    const isHit = curr <= tgt;
-                    const badgeColor = isHit ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800/80 text-orange-400 border-slate-700';
-                    const priceColor = isHit ? 'text-emerald-400' : 'text-slate-100';
-                    const safeName = (item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-                    container.innerHTML += `
-                        <div class="glass-card card-hover rounded-3xl p-4 border border-slate-800 animate-slide-up flex flex-col gap-3 relative overflow-hidden">
-                            <div class="flex justify-between items-start">
+                container.innerHTML += `
+                    <div class="glass-card card-hover rounded-3xl p-4 border border-slate-800 animate-slide-up flex flex-col gap-3 relative overflow-hidden">
+                        <div class="flex justify-between items-start">
+                            <div class="flex items-center gap-2">
                                 <span class="text-[9px] border font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${badgeColor}">${item.store || 'Web'}</span>
-                                <div class="flex items-center gap-2">
-                                    <button onclick="refreshSinglePrice(${item.id}, '${(item.url || '').replace(/'/g, "\\'")}', '${(item.store || '').replace(/'/g, "\\'")}')" title="Yenile" class="btn-interact text-slate-400 hover:text-orange-400 text-xs px-2 py-1 bg-slate-800/50 rounded-lg">
-                                        <i class="fa-solid fa-rotate"></i>
-                                    </button>
-                                    <button onclick='openDetailModal(${JSON.stringify(item).replace(/'/g, "&#39;")})' class="btn-interact text-slate-400 hover:text-blue-400 text-xs px-2 py-1 bg-slate-800/50 rounded-lg">
-                                        <i class="fa-solid fa-brain"></i> AI
-                                    </button>
-                                    <button onclick="deleteProduct(${item.id})" class="btn-interact text-slate-600 hover:text-rose-400 text-xs p-1">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </button>
-                                </div>
+                                <span class="text-[9px] font-bold px-2 py-1 rounded-lg ${analysis.buyScore >= 60 ? 'bg-emerald-500/20 text-emerald-400' : analysis.buyScore >= 30 ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-400'}">
+                                    AI: ${analysis.buyScore}
+                                </span>
                             </div>
-                            <h3 class="font-bold text-[13px] text-slate-100 leading-snug line-clamp-2">${safeName}</h3>
-                            <div class="flex justify-between items-end pt-2 border-t border-slate-800/50">
-                                <div>
-                                    <p class="text-[9px] text-slate-500 font-bold uppercase">Hedef: ${formatMoney(tgt)}</p>
-                                    <p class="text-base font-black ${priceColor}">${formatMoney(curr)}</p>
-                                </div>
-                                <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="btn-interact ${isHit ? 'bg-emerald-500 text-black hover:bg-emerald-400' : 'axion-gradient text-white'} text-[10px] px-3.5 py-2 rounded-xl font-bold shadow-md flex items-center gap-1.5">
-                                    <span>Satın Al</span>
-                                    <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
-                                </a>
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="refreshSinglePrice(${item.id}, '${(item.url || '').replace(/'/g, "\\'")}', '${(item.store || '').replace(/'/g, "\\'")}')" title="Yenile" class="btn-interact text-slate-400 hover:text-orange-400 text-xs px-2 py-1 bg-slate-800/50 rounded-lg"><i class="fa-solid fa-rotate"></i></button>
+                                <button onclick='openAiModal(${JSON.stringify(item).replace(/'/g, "&#39;")})' class="btn-interact ai-gradient text-white text-xs px-2 py-1 rounded-lg animate-ai"><i class="fa-solid fa-brain"></i></button>
+                                <button onclick="deleteProduct(${item.id})" class="btn-interact text-slate-600 hover:text-rose-400 text-xs p-1"><i class="fa-solid fa-trash-can"></i></button>
                             </div>
-                        </div>`;
-                });
-            }
+                        </div>
+                        <h3 class="font-bold text-[13px] text-slate-100 leading-snug line-clamp-2">${safeName}</h3>
+                        <div class="text-[10px] ${analysis.trend === 'down' ? 'text-emerald-400' : analysis.trend === 'up' ? 'text-rose-400' : 'text-slate-400'} font-medium">
+                            ${analysis.trend === 'down' ? '📉' : analysis.trend === 'up' ? '📈' : '➖'} ${rec.label} — ${rec.text.substring(0, 50)}...
+                        </div>
+                        <div class="flex justify-between items-end pt-2 border-t border-slate-800/50">
+                            <div>
+                                <p class="text-[9px] text-slate-500 font-bold uppercase">Hedef: ${formatMoney(tgt)}</p>
+                                <p class="text-base font-black ${priceColor}">${formatMoney(curr)}</p>
+                            </div>
+                            <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="btn-interact ${isHit ? 'bg-emerald-500 text-black hover:bg-emerald-400' : 'axion-gradient text-white'} text-[10px] px-3.5 py-2 rounded-xl font-bold shadow-md flex items-center gap-1.5"><span>Satın Al</span><i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i></a>
+                        </div>
+                    </div>`;
+            });
+        }
 
-            window.openDetailModal = function(item) {
-                const modal = document.getElementById('detailModal');
-                document.getElementById('modalProductName').innerText = item.name;
-                document.getElementById('modalStoreBadge').innerText = item.store || 'Web';
-                document.getElementById('modalCurrPrice').innerText = formatMoney(item.current_price);
-                document.getElementById('modalTgtPrice').innerText = formatMoney(item.target_price);
-                document.getElementById('modalInitPrice').innerText = formatMoney(item.initial_price || item.current_price);
-                document.getElementById('modalExternalLink').href = item.url;
+        window.deleteProduct = async function(id) {
+            const confirmed = await customConfirm("Bu ürünü silmek istiyor musunuz?");
+            if(!confirmed) return;
+            const { error } = await db.from('products').delete().eq('id', id);
+            if(error) showToast("Silinemedi.", "error");
+            else { showToast("Silindi.", "success"); loadProducts(); }
+        };
 
-                const currP = parseFloat(item.current_price);
-                const tgtP = parseFloat(item.target_price);
-                const aiInsightEl = document.getElementById('aiInsightText');
-
-                if (currP <= tgtP) {
-                    aiInsightEl.innerText = "🎯 Hedefe ulaşıldı! Alım için ideal zaman olabilir.";
-                } else {
-                    const diffPercent = (((currP - tgtP) / tgtP) * 100).toFixed(1);
-                    aiInsightEl.innerText = `📈 Hedefe %${diffPercent} kaldı. AI fiyat hareketlerini izliyor.`;
-                }
-
-                modal.classList.remove('hidden'); modal.classList.add('flex');
-
-                const ctx = document.getElementById('priceChart').getContext('2d');
-                if(priceChartInstance) priceChartInstance.destroy();
-
-                const initP = parseFloat(item.initial_price) || currP;
-                priceChartInstance = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: ['İlk', 'Güncel'],
-                        datasets: [{
-                            label: 'Fiyat (₺)',
-                            data: [initP, currP],
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                            borderWidth: 2.5,
-                            fill: true,
-                            tension: 0.3,
-                            pointBackgroundColor: '#3b82f6',
-                            pointRadius: 5
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { display: false } },
-                            y: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
-                        }
-                    }
-                });
-            };
-
-            window.closeDetailModal = function() {
-                document.getElementById('detailModal').classList.add('hidden');
-                document.getElementById('detailModal').classList.remove('flex');
-            };
-
-            window.deleteProduct = async function(id) {
-                const confirmed = await customConfirm("Bu ürünü silmek istiyor musunuz?");
-                if(!confirmed) return;
-                const { error } = await db.from('products').delete().eq('id', id);
-                if(error) showToast("Silinemedi.", "error");
-                else { showToast("Silindi.", "success"); loadProducts(); }
-            };
-
+        document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('addProductForm').addEventListener('submit', async (e) => {
                 e.preventDefault();
                 const addBtn = document.getElementById('addProductBtn');
                 addBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Ekleniyor...</span>`;
                 addBtn.disabled = true;
-
                 try {
                     const cPrice = parseFloat(document.getElementById('pCurrent').value);
                     const tPrice = parseFloat(document.getElementById('pTarget').value);
-
                     if (isNaN(cPrice) || cPrice <= 0) throw new Error("Fiyat çekilemedi. Tekrar deneyin.");
-
                     const newProduct = {
                         user_id: currentUser.id,
                         name: document.getElementById('pName').value.trim() || 'Ürün',
@@ -1058,10 +1003,8 @@
                         initial_price: cPrice,
                         url: document.getElementById('pUrl').value.trim()
                     };
-
                     const { error } = await db.from('products').insert([newProduct]);
                     if(error) throw error;
-                    
                     showToast("Ürün eklendi! 🚀", "success");
                     e.target.reset();
                     document.getElementById('statusBanner').classList.add('hidden');
@@ -1073,8 +1016,6 @@
                     addBtn.disabled = false;
                 }
             });
-
-            checkAuth();
         });
     </script>
 </body>
