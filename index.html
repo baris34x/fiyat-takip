@@ -209,7 +209,7 @@
                 </div>
                 <div class="flex flex-col">
                     <h1 class="text-sm font-black text-white tracking-wide flex items-center gap-1.5">
-                        AXION <span class="text-[8px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded font-mono font-bold">PRO v3.1</span>
+                        AXION <span class="text-[8px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded font-mono font-bold">PRO v3.2</span>
                     </h1>
                     <p class="text-[10px] text-gray-400 font-medium truncate max-w-[150px]" id="userEmailDisplay">Yükleniyor...</p>
                 </div>
@@ -269,14 +269,14 @@
 
                     <div class="space-y-1">
                         <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Ürün Adı</label>
-                        <input type="text" id="pName" placeholder="Linkten otomatik çözümleniyor..." required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                        <input type="text" id="pName" placeholder="Ürün adını girin veya linkten çekilsin..." required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                     </div>
                     
                     <div class="grid grid-cols-2 gap-3">
                         <div class="space-y-1">
                             <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest pl-1">Şu Anki Canlı Fiyat (₺)</label>
                             <div class="relative">
-                                <input type="number" step="0.01" min="0" id="pCurrent" placeholder="Otomatik çekiliyor..." required class="w-full bg-[#090d16] border border-gray-800 rounded-xl pl-4 pr-8 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                                <input type="number" step="0.01" min="0" id="pCurrent" placeholder="Fiyat girin..." required class="w-full bg-[#090d16] border border-gray-800 rounded-xl pl-4 pr-8 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">₺</span>
                             </div>
                         </div>
@@ -383,7 +383,7 @@
                 });
             };
 
-            // GERÇEK CANLI KAZIMA MİMARİSİ (YEDEKLİ PROXY)
+            // GELİŞMİŞ CANLI KAZIMA VE LİNK AÇICI
             window.autoFetchProductDetails = function(url) {
                 clearTimeout(debounceTimer);
                 if (!url || !url.startsWith('http')) return;
@@ -397,15 +397,15 @@
                     spinner.classList.remove('hidden');
 
                     let detectedStore = 'Diğer';
-                    if (url.includes('trendyol.com')) detectedStore = 'Trendyol';
-                    else if (url.includes('amazon.com')) detectedStore = 'Amazon TR';
+                    if (url.includes('trendyol.com') || url.includes('ty.gl')) detectedStore = 'Trendyol';
+                    else if (url.includes('amazon.com') || url.includes('amzn.eu') || url.includes('amzn.to')) detectedStore = 'Amazon TR';
                     else if (url.includes('hepsiburada.com')) detectedStore = 'Hepsiburada';
                     else if (url.includes('n11.com')) detectedStore = 'N11';
                     else if (url.includes('idefix.com')) detectedStore = 'İdefix';
 
                     storeSelect.value = detectedStore;
 
-                    // 1. URL'den Hassas Ürün Adı Ayıklama
+                    // URL'den Ürün Adı Ayıklama
                     try {
                         const urlObj = new URL(url);
                         const parts = urlObj.pathname.split('/').filter(p => p.length > 0);
@@ -423,7 +423,7 @@
                             slug = parts.find(p => p.includes('-')) || parts[0] || "";
                         }
 
-                        if (slug) {
+                        if (slug && !slug.includes('0fpuDYms')) { // Kısaltılmış rastgele kodları ele
                             let cleanName = slug
                                 .replace(/[-_]/g, ' ')
                                 .replace(/\s+/g, ' ')
@@ -436,8 +436,10 @@
                         }
                     } catch(e) { console.error("Slug ayıklama hatası:", e); }
 
-                    // 2. Canlı HTML Kazıma (Çoklu Proxy Hattı)
+                    // Canlı Proxy İle Fiyat ve Başlık Taraması
                     let extractedPrice = null;
+                    let extractedTitle = null;
+
                     const proxyList = [
                         `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
                         `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`
@@ -459,12 +461,18 @@
                                 const parser = new DOMParser();
                                 const doc = parser.parseFromString(htmlText, 'text/html');
 
+                                // Sayfa başlığını çek (Örn: Amazon veya Trendyol title etiketi)
+                                const pageTitle = doc.querySelector('title')?.innerText;
+                                if (pageTitle && pageTitle.length > 5) {
+                                    extractedTitle = pageTitle.split(':')[0].split('|')[0].split('-')[0].trim();
+                                }
+
                                 let rawPrice = "";
                                 if (detectedStore === 'Trendyol') {
                                     const el = doc.querySelector('.prc-dsc') || doc.querySelector('.prc-slg') || doc.querySelector('.product-price-container');
                                     if (el) rawPrice = el.innerText;
                                 } else if (detectedStore === 'Amazon TR') {
-                                    const el = doc.querySelector('.a-price-whole');
+                                    const el = doc.querySelector('.a-price-whole') || doc.querySelector('#priceblock_ourprice') || doc.querySelector('#priceblock_dealprice');
                                     if (el) rawPrice = el.innerText;
                                 } else if (detectedStore === 'Hepsiburada') {
                                     const el = doc.querySelector('[data-test-id="price-current-price"]');
@@ -476,24 +484,29 @@
                                     const parsed = parseFloat(clean);
                                     if (!isNaN(parsed) && parsed > 0) {
                                         extractedPrice = parsed;
-                                        break; // Fiyat bulundu, döngüden çık
                                     }
                                 }
+
+                                if (extractedPrice) break;
                             }
                         } catch(e) {
-                            console.log("Proxy hattı deneniyor...", e);
+                            console.log("Proxy deneniyor...", e);
                         }
                     }
 
                     spinner.classList.add('hidden');
 
+                    if (extractedTitle && extractedTitle.length > 3) {
+                        nameInput.value = extractedTitle;
+                    }
+
                     if (extractedPrice && !isNaN(extractedPrice)) {
                         priceInput.value = extractedPrice;
                         showToast(`Canlı fiyat okundu: ${formatMoney(extractedPrice)}`, "success");
                     } else {
-                        showToast("Ürün adı çekildi. Canlı fiyat engellendiği için lütfen şu anki fiyatı kontrol edin.", "info");
+                        showToast("Kısa/korumalı link tespit edildi. Lütfen fiyatı kontrol edip onaylayın.", "info");
                     }
-                }, 500);
+                }, 600);
             };
 
             const btnLogin = document.getElementById('tabLoginBtn');
@@ -756,15 +769,15 @@
                     const tPrice = parseFloat(document.getElementById('pTarget').value);
 
                     if (isNaN(cPrice) || cPrice <= 0) {
-                        throw new Error("Lütfen şu anki canlı fiyatı kontrol edip doğru şekilde girin.");
+                        throw new Error("Lütfen şu anki fiyat alanına geçerli bir sayı girin.");
                     }
                     if (isNaN(tPrice) || tPrice <= 0) {
-                        throw new Error("Lütfen hedef fiyatı doğru girin.");
+                        throw new Error("Lütfen hedef fiyat alanına geçerli bir sayı girin.");
                     }
 
                     const newProduct = {
                         user_id: currentUser.id,
-                        name: document.getElementById('pName').value.trim() || 'Yeni Ürün',
+                        name: document.getElementById('pName').value.trim() || 'Ürün',
                         store: document.getElementById('pStore').value || 'Web',
                         target_price: tPrice,
                         current_price: cPrice,
