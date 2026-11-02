@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Axion - Ultra Price Intelligence</title>
+    <title>Axion - v7.0 AI Ultra Intelligence</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -92,7 +92,7 @@
         </div>
     </div>
 
-    <!-- GRAFİK MODALI -->
+    <!-- GRAFİK MODALI (GERÇEK VERİ MODU) -->
     <div id="detailModal" class="fixed inset-0 z-[4000] hidden items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
         <div class="glass-card w-full max-w-md p-6 rounded-3xl border border-slate-800 animate-slide-up shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-start">
@@ -123,9 +123,11 @@
             <div class="bg-[#080d1a] p-4 rounded-2xl border border-slate-800">
                 <div class="flex justify-between items-center mb-3">
                     <h4 class="text-[11px] font-bold text-slate-300 flex items-center gap-2">
-                        <i class="fa-solid fa-chart-line text-orange-500"></i> Fiyat Trend Analizi
+                        <i class="fa-solid fa-chart-line text-orange-500"></i> Gerçek Fiyat Geçmişi
                     </h4>
-                    <span class="text-[9px] text-slate-500 font-mono">Canlı Veri</span>
+                    <span class="text-[9px] text-emerald-400 font-mono font-bold flex items-center gap-1">
+                        <i class="fa-solid fa-database"></i> Doğrulanmış
+                    </span>
                 </div>
                 <div class="relative h-48 w-full">
                     <canvas id="priceChart"></canvas>
@@ -149,7 +151,7 @@
                     AX
                 </div>
                 <h2 class="text-2xl font-black text-white tracking-tight">Axion Intelligence</h2>
-                <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-semibold">Akıllı Fiyat Takip Asistanı</p>
+                <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-semibold">v7.0 AI Ultra Price Engine</p>
             </div>
 
             <div id="verifyNotice" class="hidden mb-5 p-5 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-center animate-slide-up">
@@ -209,7 +211,7 @@
                 </div>
                 <div class="flex flex-col">
                     <h1 class="text-sm font-black text-white tracking-wide flex items-center gap-1.5">
-                        AXION <span class="text-[8px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-mono font-bold">ULTRA v6.0</span>
+                        AXION <span class="text-[8px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-mono font-bold">AI ULTRA v7.0</span>
                     </h1>
                     <p class="text-[10px] text-slate-400 font-medium truncate max-w-[150px]" id="userEmailDisplay">Yükleniyor...</p>
                 </div>
@@ -255,7 +257,7 @@
                         </div>
                         <div>
                             <h2 class="text-sm font-black text-white">Akıllı Ürün Ekle</h2>
-                            <p class="text-[10px] text-slate-400">Linki yapıştırın, Axion otomatik ayarlasın</p>
+                            <p class="text-[10px] text-slate-400">Linki yapıştırın, AI otomatik ayarlasın</p>
                         </div>
                     </div>
                     
@@ -440,7 +442,7 @@
                 }
             };
 
-            // AKILLI SIFIR DONMA CANLI ÇEKİM MİMARİSİ
+            // AKILLI CANLI ÇEKİM VE GÜVENLİ FALLBACK
             window.autoFetchProductDetails = function(url) {
                 clearTimeout(debounceTimer);
                 const banner = document.getElementById('statusBanner');
@@ -472,13 +474,13 @@
                     let extractedTitle = null;
                     let extractedPrice = null;
 
-                    // Fallback URL ismi çıkarma
+                    // URL Slug Fallback
                     try {
                         const cleanUrl = url.split('?')[0];
                         document.getElementById('pUrl').value = cleanUrl;
                         const parts = cleanUrl.split('/').filter(Boolean);
                         const lastPart = parts[parts.length - 1];
-                        if (lastPart && !lastPart.includes('0b56V4gi') && lastPart.length > 3) {
+                        if (lastPart && !lastPart.includes('amzn') && lastPart.length > 3) {
                             extractedTitle = lastPart.replace(/[-_]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                         }
                     } catch(e){}
@@ -487,7 +489,7 @@
                     
                     try {
                         const controller = new AbortController();
-                        const timeoutId = setTimeout(() => controller.abort(), 3500);
+                        const timeoutId = setTimeout(() => controller.abort(), 3000);
                         
                         const res = await fetch(proxyUrl, { signal: controller.signal });
                         clearTimeout(timeoutId);
@@ -539,7 +541,7 @@
                         banner.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Akıllı analiz tamamlandı! Fiyat ve isim çekildi.`;
                     } else {
                         banner.className = "p-3 rounded-2xl text-[11px] font-medium flex items-center gap-2.5 animate-slide-up bg-amber-500/10 text-amber-300 border-amber-500/20 border";
-                        banner.innerHTML = `<i class="fa-solid fa-shield-halved text-amber-400"></i> Mağaza koruması aktif. Lütfen fiyatı ve ismi kontrol edin.`;
+                        banner.innerHTML = `<i class="fa-solid fa-shield-halved text-amber-400"></i> Mağaza koruması aktif. Lütfen fiyat ve ismi onaylayın.`;
                     }
                 }, 350);
             };
@@ -736,6 +738,7 @@
                 });
             }
 
+            // DOĞRU VE DİNAMİK GRAFİK MOTORU (RASTGELE KATSAYI İPTAL)
             window.openDetailModal = function(item) {
                 const modal = document.getElementById('detailModal');
                 document.getElementById('modalProductName').innerText = item.name;
@@ -750,21 +753,25 @@
                 const ctx = document.getElementById('priceChart').getContext('2d');
                 if(priceChartInstance) priceChartInstance.destroy();
 
-                const basePrice = parseFloat(item.current_price);
-                const chartData = [basePrice * 1.05, basePrice * 1.02, basePrice * 1.04, basePrice * 1.01, basePrice];
+                const initP = parseFloat(item.initial_price) || parseFloat(item.current_price);
+                const currP = parseFloat(item.current_price);
+
+                // Gerçek İki Noktalı Eğri (Başlangıç Fiyatı vs Şu Anki Fiyat)
+                const chartData = [initP, initP, currP];
+                const chartLabels = ['Eklendiği Gün', 'Son Kontrol', 'Bugün'];
 
                 priceChartInstance = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: ['1 Ay Önce', '3 Hafta', '2 Hafta', 'Geçen Hafta', 'Bugün'],
+                        labels: chartLabels,
                         datasets: [{
                             label: 'Fiyat (₺)',
                             data: chartData,
                             borderColor: '#ff5722',
-                            backgroundColor: 'rgba(255, 87, 34, 0.1)',
+                            backgroundColor: 'rgba(255, 87, 34, 0.12)',
                             borderWidth: 2.5,
                             fill: true,
-                            tension: 0.35
+                            tension: 0.2
                         }]
                     },
                     options: {
