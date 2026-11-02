@@ -412,4 +412,871 @@
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             const styles = {
-                success: 'bg-emerald-950/90 border-em
+                success: 'bg-emerald-950/90 border-emerald-500/50 text-emerald-100',
+                error: 'bg-rose-950/90 border-rose-500/50 text-rose-100',
+                info: 'bg-slate-900/90 border-orange-500/50 text-slate-100'
+            };
+            const icons = {
+                success: 'fa-circle-check text-emerald-400',
+                error: 'fa-circle-xmark text-rose-400',
+                info: 'fa-circle-info text-orange-400'
+            };
+            toast.className = `glass-card ${styles[type]} p-3.5 rounded-2xl border text-[11px] font-medium flex items-center gap-3 shadow-lg backdrop-blur-md animate-toast pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type]} text-lg"></i> <span class="flex-1">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(-10px) scale(0.95)';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        };
+
+        // ============ BİLDİRİM İZİN ============
+        window.requestNotificationPermission = async function() {
+            if (!('Notification' in window)) {
+                showToast("Tarayıcı bildirimleri desteklenmiyor.", "error");
+                return;
+            }
+            const permission = await Notification.requestPermission();
+            if (permission === 'granted') {
+                showToast("Bildirimler açıldı! Hedefe ulaşınca haber vereceğiz.", "success");
+                document.getElementById('notifBtn').classList.add('text-blue-400', 'bg-blue-500/20');
+                new Notification('Axion', { body: 'Bildirimler aktif! 🎯', icon: '' });
+            } else {
+                showToast("Bildirim izni verilmedi.", "info");
+            }
+        };
+
+        function sendNotification(title, body) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, { body, badge: '🎯' });
+            }
+        }
+
+        // ============ CONFIRM ============
+        window.customConfirm = function(message) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('customConfirmModal');
+                const msgEl = document.getElementById('confirmMessage');
+                const btnYes = document.getElementById('confirmActionBtn');
+                const btnNo = document.getElementById('confirmCancelBtn');
+                msgEl.innerText = message;
+                modal.classList.remove('hidden'); modal.classList.add('flex');
+                const cleanup = () => { modal.classList.add('hidden'); modal.classList.remove('flex'); btnYes.removeEventListener('click', onYes); btnNo.removeEventListener('click', onNo); };
+                const onYes = () => { cleanup(); resolve(true); };
+                const onNo = () => { cleanup(); resolve(false); };
+                btnYes.addEventListener('click', onYes);
+                btnNo.addEventListener('click', onNo);
+            });
+        };
+
+        // ============ Pano ============
+        window.pasteFromClipboard = async function() {
+            try {
+                const text = await navigator.clipboard.readText();
+                if (text && text.startsWith('http')) {
+                    const urlInput = document.getElementById('pUrl');
+                    urlInput.value = text;
+                    autoFetchProductDetails(text);
+                    showToast("Bağlantı yapıştırıldı!", "success");
+                } else {
+                    showToast("Panoda geçerli bağlantı yok.", "info");
+                }
+            } catch (err) {
+                showToast("Pano izni gerekli.", "info");
+            }
+        };
+
+        // ============ Hedef Yüzde ============
+        window.setTargetPercent = function(rate) {
+            selectedDiscountRate = rate;
+            [0.05, 0.10, 0.15].forEach(r => {
+                const btn = document.getElementById(`targetBtn-${Math.round(r*100)}`);
+                if (btn) {
+                    if (r === rate) {
+                        btn.className = "btn-interact py-2.5 bg-orange-500/20 text-orange-400 rounded-xl text-[10px] font-bold border border-orange-500/30";
+                    } else {
+                        btn.className = "btn-interact py-2.5 bg-slate-800 text-slate-300 rounded-xl text-[10px] font-bold border border-slate-700";
+                    }
+                }
+            });
+            const cPrice = parseFloat(document.getElementById('pCurrent').value);
+            if (!isNaN(cPrice) && cPrice > 0) {
+                document.getElementById('pTarget').value = (cPrice * (1 - rate)).toFixed(2);
+            }
+        };
+
+        // ============ FİYAT ÇEKİCİ (GELİŞMİŞ) ============
+        async function fetchRealPriceFromUrl(targetUrl, storeName) {
+            let finalUrl = targetUrl;
+            if (targetUrl.includes('amzn.eu') || targetUrl.includes('ty.gl')) {
+                try {
+                    const unshorten = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`);
+                    const d = await unshorten.json();
+                    if (d && d.status && d.status.url) finalUrl = d.status.url;
+                } catch(e){}
+            }
+
+            // Çoklu proxy — biri çalışmazsa diğerini dene
+            const proxies = [
+                { url: `https://api.allorigins.win/get?url=${encodeURIComponent(finalUrl)}`, type: 'json' },
+                { url: `https://corsproxy.io/?${encodeURIComponent(finalUrl)}`, type: 'text' },
+                { url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(finalUrl)}`, type: 'text' }
+            ];
+
+            for (let proxy of proxies) {
+                try {
+                    const controller = new AbortController();
+                    const timer = setTimeout(() => controller.abort(), 6000);
+                    const res = await fetch(proxy.url, { signal: controller.signal });
+                    clearTimeout(timer);
+
+                    let html = "";
+                    if (proxy.type === 'json') {
+                        const data = await res.json();
+                        html = data.contents || '';
+                    } else {
+                        html = await res.text();
+                    }
+                    if (!html || html.length < 100) continue;
+
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+
+                    let title = "";
+                    const titleTag = doc.querySelector('#productTitle') || doc.querySelector('h1') || doc.querySelector('title');
+                    if (titleTag) {
+                        title = titleTag.textContent.trim()
+                            .replace('Amazon.com.tr:', '')
+                            .replace('Trendyol', '')
+                            .split('|')[0]
+                            .trim()
+                            .substring(0, 120);
+                    }
+
+                    let extractedPrice = null;
+
+                    // JSON-LD
+                    const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+                    for (let s of scripts) {
+                        try {
+                            const json = JSON.parse(s.textContent);
+                            const item = Array.isArray(json) ? json[0] : json;
+                            if (item.offers) {
+                                const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
+                                if (offer.price) { extractedPrice = parseFloat(offer.price); break; }
+                                if (offer.lowPrice) { extractedPrice = parseFloat(offer.lowPrice); break; }
+                            }
+                        } catch(e){}
+                    }
+
+                    // Meta
+                    if (!extractedPrice) {
+                        const metaPrice = doc.querySelector('meta[property="product:price:amount"]') || doc.querySelector('meta[property="og:price:amount"]');
+                        if (metaPrice && metaPrice.content) {
+                            extractedPrice = parseFloat(metaPrice.content.replace(',', '.'));
+                        }
+                    }
+
+                    // Selector-based
+                    if (!extractedPrice) {
+                        let priceText = "";
+                        if (finalUrl.includes('trendyol')) {
+                            const el = doc.querySelector('.prc-dsc') || doc.querySelector('.prc-slg') || doc.querySelector('[class*="price"]');
+                            if (el) priceText = el.textContent;
+                        } else if (finalUrl.includes('amazon')) {
+                            const el = doc.querySelector('.a-price-whole') || doc.querySelector('.a-offscreen') || doc.querySelector('#priceblock_ourprice');
+                            if (el) priceText = el.textContent;
+                        } else if (finalUrl.includes('hepsiburada')) {
+                            const el = doc.querySelector('[data-test-id="price-current-price"]');
+                            if (el) priceText = el.textContent;
+                        }
+                        if (priceText) {
+                            const clean = priceText.replace(/[^\d,.]/g, '').replace(/\./g, '').replace(',', '.');
+                            extractedPrice = parseFloat(clean);
+                        }
+                    }
+
+                    if (extractedPrice && !isNaN(extractedPrice) && extractedPrice > 0) {
+                        return { price: extractedPrice, title: title };
+                    }
+                } catch(e) { continue; }
+            }
+            return null;
+        }
+
+        // ============ URL Otomatik ============
+        window.autoFetchProductDetails = function(url) {
+            clearTimeout(debounceTimer);
+            const banner = document.getElementById('statusBanner');
+            if (!url || !url.startsWith('http')) {
+                banner.classList.add('hidden');
+                return;
+            }
+
+            debounceTimer = setTimeout(async () => {
+                const spinner = document.getElementById('fetchSpinner');
+                const nameInput = document.getElementById('pName');
+                const priceInput = document.getElementById('pCurrent');
+                const targetInput = document.getElementById('pTarget');
+                const storeInput = document.getElementById('pStore');
+
+                spinner.classList.remove('hidden');
+                banner.className = "p-3.5 rounded-2xl text-[11px] font-medium flex items-center gap-2.5 animate-slide-up bg-blue-500/10 text-blue-300 border-blue-500/20 border";
+                banner.innerHTML = `<i class="fa-solid fa-bolt fa-spin text-blue-400"></i> Link çözülüyor...`;
+                banner.classList.remove('hidden');
+
+                let detectedStore = 'Diğer';
+                if (url.includes('trendyol.com') || url.includes('ty.gl')) detectedStore = 'Trendyol';
+                else if (url.includes('amazon.com') || url.includes('amzn.eu') || url.includes('amzn.to')) detectedStore = 'Amazon TR';
+                else if (url.includes('hepsiburada.com')) detectedStore = 'Hepsiburada';
+                storeInput.value = detectedStore;
+
+                const realResult = await fetchRealPriceFromUrl(url, detectedStore);
+                spinner.classList.add('hidden');
+
+                if (realResult && realResult.price) {
+                    if (realResult.title && realResult.title.length > 3) nameInput.value = realResult.title;
+                    priceInput.value = realResult.price;
+                    targetInput.value = (realResult.price * (1 - selectedDiscountRate)).toFixed(2);
+                    
+                    banner.className = "p-3.5 rounded-2xl text-[11px] font-medium flex items-center justify-between animate-slide-up bg-emerald-500/10 text-emerald-400 border-emerald-500/20 border";
+                    banner.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-circle-check text-emerald-400"></i>
+                            <span>Canlı Fiyat:</span>
+                        </div>
+                        <span class="font-black text-sm text-white font-mono bg-emerald-500/20 px-2.5 py-1 rounded-lg">${formatMoney(realResult.price)}</span>`;
+                } else {
+                    priceInput.value = "";
+                    targetInput.value = "";
+                    banner.className = "p-3.5 rounded-2xl text-[11px] font-medium flex items-center gap-2.5 animate-slide-up bg-amber-500/10 text-amber-300 border-amber-500/20 border";
+                    banner.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Fiyat otomatik alınamadı. Manuel giriş yapabilirsiniz.`;
+                }
+            }, 500);
+        };
+
+        // ============ KEŞFET ============
+        window.quickSearch = function(query) {
+            document.getElementById('aiSearchQuery').value = query;
+            runAiSearch();
+        };
+
+        window.runAiSearch = async function() {
+            const query = document.getElementById('aiSearchQuery').value.trim();
+            const container = document.getElementById('aiSearchResults');
+            if (!query) return;
+
+            container.innerHTML = `
+                <div class="glass-card p-6 rounded-3xl text-center border border-slate-800 space-y-3">
+                    <i class="fa-solid fa-bolt fa-spin text-2xl text-blue-400"></i>
+                    <p class="text-xs text-slate-300 font-bold">Canlı arama...</p>
+                    <p class="text-[10px] text-slate-500">"${query}" taranıyor</p>
+                </div>`;
+
+            try {
+                const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query + ' satın al trendyol amazon hepsiburada')}`;
+                const res = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(searchUrl)}`);
+                const data = await res.json();
+                
+                let foundItems = [];
+                if (data && data.contents) {
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(data.contents, 'text/html');
+                    const results = doc.querySelectorAll('.result');
+                    
+                    results.forEach(r => {
+                        const titleEl = r.querySelector('.result__title a');
+                        const snippetEl = r.querySelector('.result__snippet');
+                        if (titleEl && titleEl.textContent) {
+                            const titleText = titleEl.textContent.trim();
+                            const snippetText = snippetEl ? snippetEl.textContent : '';
+                            
+                            const priceMatch = snippetText.match(/(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)/i);
+                            let priceVal = priceMatch ? parseFloat(priceMatch[1].replace(/\./g, '').replace(',', '.')) : null;
+
+                            let store = "Web";
+                            const lower = titleText.toLowerCase();
+                            if (lower.includes('trendyol')) store = "Trendyol";
+                            else if (lower.includes('amazon')) store = "Amazon TR";
+                            else if (lower.includes('hepsiburada')) store = "Hepsiburada";
+
+                            foundItems.push({
+                                name: titleText.substring(0, 100),
+                                store,
+                                price: priceVal,
+                                url: titleEl.href || 'https://www.google.com'
+                            });
+                        }
+                    });
+                }
+
+                if (foundItems.length > 0) {
+                    container.innerHTML = '';
+                    foundItems.slice(0, 5).forEach((res) => {
+                        const safeName = res.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        container.innerHTML += `
+                            <div class="glass-card p-4 rounded-3xl border border-slate-800 animate-slide-up flex flex-col gap-2.5">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-800 text-blue-400 border border-slate-700">${res.store}</span>
+                                    <span class="text-xs font-black text-emerald-400 font-mono">${res.price ? formatMoney(res.price) : 'Sayfada'}</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-white leading-snug line-clamp-2">${res.name}</h4>
+                                <div class="flex gap-2 mt-1">
+                                    <button onclick="directAddDiscovered('${safeName}', ${res.price || 0}, '${res.store}', '${res.url}')" class="btn-interact flex-1 axion-gradient text-white text-[10px] font-bold py-2.5 rounded-xl shadow flex items-center justify-center gap-1.5">
+                                        <i class="fa-solid fa-plus text-[9px]"></i> Radara Ekle
+                                    </button>
+                                    <a href="${res.url}" target="_blank" rel="noopener noreferrer" class="btn-interact bg-slate-800 text-slate-300 hover:text-white p-2.5 rounded-xl text-xs flex items-center justify-center">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </a>
+                                </div>
+                            </div>`;
+                    });
+                } else {
+                    throw new Error();
+                }
+            } catch (err) {
+                container.innerHTML = `
+                    <div class="glass-card p-5 rounded-3xl border border-slate-800 text-center space-y-3">
+                        <i class="fa-solid fa-wifi text-2xl text-orange-400"></i>
+                        <h4 class="text-xs font-bold text-white">Sonuç Bulunamadı</h4>
+                        <p class="text-[10px] text-slate-400">Farklı kelimeler deneyin.</p>
+                    </div>`;
+            }
+        };
+
+        window.directAddDiscovered = async function(name, price, store, url) {
+            const finalPrice = price > 0 ? price : 1000;
+            const targetPrice = (finalPrice * 0.90).toFixed(2);
+            const newProduct = {
+                user_id: currentUser.id,
+                name: name,
+                store: store,
+                target_price: parseFloat(targetPrice),
+                current_price: parseFloat(finalPrice),
+                initial_price: parseFloat(finalPrice),
+                url: url
+            };
+            const { error } = await db.from('products').insert([newProduct]);
+            if (!error) {
+                showToast("Ürün radara eklendi! 🚀", "success");
+                switchTab('home');
+            } else {
+                showToast("Ekleme hatası: " + error.message, "error");
+            }
+        };
+
+        // ============ FİYAT YENİLEME ============
+        window.refreshAllPrices = async function() {
+            const refreshBtn = document.getElementById('refreshAllBtn');
+            const refreshIcon = document.getElementById('refreshIcon');
+            refreshIcon.classList.add('fa-spin');
+            refreshBtn.disabled = true;
+
+            let updatedCount = 0;
+            for (let product of allUserProducts) {
+                if (product.url && product.url.startsWith('http')) {
+                    const res = await fetchRealPriceFromUrl(product.url, product.store);
+                    if (res && res.price && res.price !== parseFloat(product.current_price)) {
+                        const wasAbove = parseFloat(product.current_price) > parseFloat(product.target_price);
+                        const nowBelow = res.price <= parseFloat(product.target_price);
+                        
+                        await db.from('products').update({ 
+                            current_price: res.price
+                        }).eq('id', product.id);
+                        
+                        updatedCount++;
+                        
+                        // HEDEFE ULAŞTI BİLDİRİMİ
+                        if (wasAbove && nowBelow) {
+                            sendNotification('🎯 Hedefe Ulaşıldı!', `${product.name} artık ${formatMoney(res.price)}`);
+                            showToast(`🎯 ${product.name} hedefe ulaştı!`, "success");
+                        }
+                    }
+                }
+            }
+
+            refreshIcon.classList.remove('fa-spin');
+            refreshBtn.disabled = false;
+            showToast(updatedCount > 0 ? `${updatedCount} fiyat güncellendi!` : "Tüm fiyatlar güncel.", "success");
+            loadProducts();
+        };
+
+        window.refreshSinglePrice = async function(id, url, store) {
+            showToast("Fiyat güncelleniyor...", "info");
+            const res = await fetchRealPriceFromUrl(url, store);
+            if (res && res.price) {
+                await db.from('products').update({ current_price: res.price }).eq('id', id);
+                showToast(`Güncel: ${formatMoney(res.price)}`, "success");
+                loadProducts();
+            } else {
+                showToast("Güncellenemedi.", "error");
+            }
+        };
+
+        // ============ AUTH ============
+        document.addEventListener('DOMContentLoaded', () => {
+            const SUPABASE_URL = "https://rgrborzdgbslwmixszyl.supabase.co";
+            const SUPABASE_ANON_KEY = "sb_publishable_UqT3G_hrhUFarwUEZ6UBxA_BWZpfWHw";
+            
+            db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+                auth: {
+                    persistSession: true,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true  // ✅ Doğrulama linkinden dönünce otomatik giriş
+                }
+            });
+
+            const btnLogin = document.getElementById('tabLoginBtn');
+            const btnRegister = document.getElementById('tabRegisterBtn');
+            btnLogin.addEventListener('click', () => setAuthMode('login'));
+            btnRegister.addEventListener('click', () => setAuthMode('register'));
+
+            // ✅ Auth state listener
+            db.auth.onAuthStateChange(async (event, session) => {
+                console.log('Auth event:', event);
+                if (event === 'SIGNED_IN' && session?.user) {
+                    currentUser = session.user;
+                    document.getElementById('authModal').classList.add('hidden');
+                    document.getElementById('appContent').classList.remove('hidden');
+                    document.getElementById('userEmailDisplay').innerText = currentUser.email;
+                    loadProducts();
+                } else if (event === 'SIGNED_OUT') {
+                    currentUser = null;
+                    document.getElementById('authModal').classList.remove('hidden');
+                    document.getElementById('appContent').classList.add('hidden');
+                }
+            });
+
+            checkAuth();
+        });
+
+        function setAuthMode(mode) {
+            currentAuthMode = mode;
+            const confirmGroup = document.getElementById('confirmPasswordGroup');
+            const confirmInput = document.getElementById('authConfirmPassword');
+            const mainBtn = document.getElementById('mainAuthBtn');
+            const btnLogin = document.getElementById('tabLoginBtn');
+            const btnRegister = document.getElementById('tabRegisterBtn');
+
+            if (mode === 'login') {
+                btnLogin.className = "btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl bg-orange-500 text-white shadow-md";
+                btnRegister.className = "btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl text-slate-400 hover:text-white";
+                confirmGroup.classList.add('hidden'); confirmInput.removeAttribute('required');
+                mainBtn.innerHTML = `<span>Giriş Yap</span> <i class="fa-solid fa-arrow-right-to-bracket"></i>`;
+            } else {
+                btnRegister.className = "btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl bg-orange-500 text-white shadow-md";
+                btnLogin.className = "btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl text-slate-400 hover:text-white";
+                confirmGroup.classList.remove('hidden'); confirmInput.setAttribute('required', 'true');
+                mainBtn.innerHTML = `<span>Hesap Oluştur</span> <i class="fa-solid fa-user-plus"></i>`;
+            }
+        }
+
+        async function checkAuth() {
+            try {
+                const { data: { session }, error } = await db.auth.getSession();
+                if (error) throw error;
+                if (session && session.user) {
+                    currentUser = session.user;
+                    document.getElementById('authModal').classList.add('hidden');
+                    document.getElementById('appContent').classList.remove('hidden');
+                    document.getElementById('userEmailDisplay').innerText = currentUser.email;
+                    loadProducts();
+                } else {
+                    document.getElementById('authModal').classList.remove('hidden');
+                    document.getElementById('appContent').classList.add('hidden');
+                }
+            } catch(e) {
+                console.error('Auth check error:', e);
+                document.getElementById('authModal').classList.remove('hidden');
+            }
+        }
+
+        // Auth form submit
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('authForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('authEmail').value.trim();
+                const password = document.getElementById('authPassword').value;
+                const mainBtn = document.getElementById('mainAuthBtn');
+
+                mainBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <span>İşleniyor...</span>`;
+                mainBtn.disabled = true;
+
+                try {
+                    if (currentAuthMode === 'register') {
+                        const confirmPass = document.getElementById('authConfirmPassword').value;
+                        if (password !== confirmPass) throw new Error("Şifreler eşleşmiyor!");
+                        if (password.length < 6) throw new Error("Şifre en az 6 karakter olmalı!");
+
+                        const { data, error } = await db.auth.signUp({ 
+                            email, password,
+                            options: { emailRedirectTo: window.location.origin + window.location.pathname }
+                        });
+                        if (error) throw error;
+                        
+                        if (data.user && !data.session) {
+                            // E-posta doğrulama gerekli
+                            lastRegisteredEmail = email;
+                            document.getElementById('registeredEmailText').innerText = email;
+                            document.getElementById('authFormContainer').classList.add('hidden');
+                            document.getElementById('verifyNotice').classList.remove('hidden');
+                            showToast("Doğrulama e-postası gönderildi!", "success");
+                            startResendCountdown(30);
+                        } else if (data.session) {
+                            showToast("Hesap oluşturuldu! 🎉", "success");
+                            await checkAuth();
+                        }
+                    } else {
+                        const { data, error } = await db.auth.signInWithPassword({ email, password });
+                        if (error) {
+                            if (error.message.includes('Email not confirmed')) {
+                                lastRegisteredEmail = email;
+                                document.getElementById('registeredEmailText').innerText = email;
+                                document.getElementById('authFormContainer').classList.add('hidden');
+                                document.getElementById('verifyNotice').classList.remove('hidden');
+                                showToast("Önce e-postanızı doğrulayın!", "error");
+                            } else if (error.message.includes('Invalid login')) {
+                                showToast("E-posta veya şifre hatalı!", "error");
+                            } else {
+                                throw error;
+                            }
+                        } else {
+                            document.getElementById('authForm').reset();
+                            showToast("Giriş başarılı!", "success");
+                        }
+                    }
+                } catch(err) {
+                    showToast(err.message || "İşlem başarısız.", "error");
+                } finally {
+                    mainBtn.disabled = false;
+                    if (!lastRegisteredEmail) setAuthMode(currentAuthMode);
+                }
+            });
+        });
+
+        window.resetAuthView = function() {
+            document.getElementById('verifyNotice').classList.add('hidden');
+            document.getElementById('authFormContainer').classList.remove('hidden');
+            setAuthMode('login');
+        };
+
+        window.resendVerification = async function() {
+            if (!lastRegisteredEmail) return;
+            const resendBtn = document.getElementById('resendBtn');
+            const resendBtnText = document.getElementById('resendBtnText');
+            resendBtn.disabled = true;
+            try {
+                const { error } = await db.auth.resend({
+                    type: 'signup',
+                    email: lastRegisteredEmail,
+                    options: { emailRedirectTo: window.location.origin + window.location.pathname }
+                });
+                if (error) {
+                    showToast("Gönderilemedi: " + error.message, "error");
+                    resendBtn.disabled = false;
+                } else {
+                    showToast("Doğrulama tekrar gönderildi!", "success");
+                    startResendCountdown(30);
+                }
+            } catch(err) {
+                showToast("Hata: " + err.message, "error");
+                resendBtn.disabled = false;
+            }
+        };
+
+        function startResendCountdown(seconds) {
+            const resendBtn = document.getElementById('resendBtn');
+            const resendBtnText = document.getElementById('resendBtnText');
+            let count = seconds;
+            resendBtn.disabled = true;
+            resendBtnText.innerText = `Tekrar Gönder (${count}s)`;
+            clearInterval(resendTimer);
+            resendTimer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    resendBtnText.innerText = `Tekrar Gönder (${count}s)`;
+                } else {
+                    clearInterval(resendTimer);
+                    resendBtnText.innerText = "Tekrar Gönder";
+                    resendBtn.disabled = false;
+                }
+            }, 1000);
+        }
+
+        window.logout = async function() {
+            await db.auth.signOut();
+            currentUser = null;
+            showToast("Oturum kapatıldı.", "info");
+        };
+
+        // ============ TAB SWITCH ============
+        window.switchTab = function(tab) {
+            ['home', 'add', 'discover'].forEach(t => {
+                const tabEl = document.getElementById(`tab-${t}`);
+                const navEl = document.getElementById(`nav-${t}`);
+                if (tabEl) tabEl.classList.add('hidden');
+                if (navEl) {
+                    navEl.classList.remove('text-orange-500', 'text-blue-400');
+                    navEl.classList.add('text-slate-500');
+                }
+            });
+            const activeTab = document.getElementById(`tab-${tab}`);
+            const activeNav = document.getElementById(`nav-${tab}`);
+            if (activeTab) activeTab.classList.remove('hidden');
+            if (activeNav) {
+                activeNav.classList.add(tab === 'discover' ? 'text-blue-400' : 'text-orange-500');
+                activeNav.classList.remove('text-slate-500');
+            }
+            if(tab === 'home') loadProducts();
+        };
+
+        // ============ ÜRÜN LİSTESİ ============
+        async function loadProducts() {
+            if (!currentUser) return;
+            const container = document.getElementById('productList');
+            container.innerHTML = `<div class="glass-card p-4 rounded-3xl skeleton h-28"></div>`.repeat(2);
+
+            try {
+                const { data, error } = await db.from('products').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+                if (error) throw error;
+                allUserProducts = data || [];
+                renderProductList(allUserProducts);
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = `<div class="text-center py-10 text-xs text-rose-400">Veriler yüklenemedi.</div>`;
+            }
+        }
+
+        // ============ FİLTRE ============
+        window.setFilter = function(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-pill').forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.className = 'filter-pill btn-interact flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full bg-orange-500 text-white';
+                } else {
+                    btn.className = 'filter-pill btn-interact flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full bg-slate-800 text-slate-400';
+                }
+            });
+            filterProducts();
+        };
+
+        window.filterProducts = function() {
+            const query = (document.getElementById('searchInput')?.value || '').toLowerCase();
+            let filtered = allUserProducts;
+            
+            if (query) {
+                filtered = filtered.filter(p => 
+                    (p.name || '').toLowerCase().includes(query) || 
+                    (p.store || '').toLowerCase().includes(query)
+                );
+            }
+            
+            if (currentFilter === 'target') {
+                filtered = filtered.filter(p => parseFloat(p.current_price) <= parseFloat(p.target_price));
+            } else if (currentFilter === 'dropped') {
+                filtered = filtered.filter(p => parseFloat(p.current_price) < parseFloat(p.initial_price || p.current_price));
+            } else if (currentFilter === 'rising') {
+                filtered = filtered.filter(p => parseFloat(p.current_price) > parseFloat(p.initial_price || p.current_price));
+            }
+            
+            renderProductList(filtered);
+        };
+
+        function renderProductList(products) {
+            const container = document.getElementById('productList');
+            let targetHits = 0, totalSavings = 0;
+
+            allUserProducts.forEach(item => {
+                const curr = parseFloat(item.current_price) || 0;
+                const tgt = parseFloat(item.target_price) || 0;
+                const init = parseFloat(item.initial_price) || curr;
+                if (curr <= tgt) targetHits++;
+                if (curr < init) totalSavings += (init - curr);
+            });
+
+            document.getElementById('productCount').innerText = allUserProducts.length;
+            document.getElementById('targetHitCount').innerText = targetHits;
+            document.getElementById('totalSavings').innerText = formatMoney(totalSavings);
+            
+            container.innerHTML = '';
+
+            if (products.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 glass-card rounded-3xl animate-fade-in border-dashed border-slate-800">
+                        <div class="w-14 h-14 bg-slate-800/50 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <i class="fa-solid fa-radar text-2xl text-slate-500"></i>
+                        </div>
+                        <p class="text-xs text-slate-400 font-medium">Radarda ürün yok.</p>
+                    </div>`;
+                return;
+            }
+
+            products.forEach((item) => {
+                const curr = parseFloat(item.current_price) || 0;
+                const tgt = parseFloat(item.target_price) || 0;
+                const isHit = curr <= tgt;
+                
+                const badgeColor = isHit ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-slate-800/80 text-orange-400 border-slate-700';
+                const priceColor = isHit ? 'text-emerald-400' : 'text-slate-100';
+                const safeName = (item.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                container.innerHTML += `
+                    <div class="glass-card card-hover rounded-3xl p-4 border border-slate-800 animate-slide-up flex flex-col gap-3 relative overflow-hidden">
+                        <div class="flex justify-between items-start">
+                            <span class="text-[9px] border font-bold px-2.5 py-1 rounded-lg uppercase tracking-wider ${badgeColor}">${item.store || 'Web'}</span>
+                            <div class="flex items-center gap-2">
+                                <button onclick="refreshSinglePrice(${item.id}, '${(item.url || '').replace(/'/g, "\\'")}', '${(item.store || '').replace(/'/g, "\\'")}')" title="Yenile" class="btn-interact text-slate-400 hover:text-orange-400 text-xs px-2 py-1 bg-slate-800/50 rounded-lg">
+                                    <i class="fa-solid fa-rotate"></i>
+                                </button>
+                                <button onclick='openDetailModal(${JSON.stringify(item).replace(/'/g, "&#39;")})' class="btn-interact text-slate-400 hover:text-blue-400 text-xs px-2 py-1 bg-slate-800/50 rounded-lg">
+                                    <i class="fa-solid fa-brain"></i> AI
+                                </button>
+                                <button onclick="deleteProduct(${item.id})" class="btn-interact text-slate-600 hover:text-rose-400 text-xs p-1">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <h3 class="font-bold text-[13px] text-slate-100 leading-snug line-clamp-2">${safeName}</h3>
+                        
+                        <div class="flex justify-between items-end pt-2 border-t border-slate-800/50">
+                            <div>
+                                <p class="text-[9px] text-slate-500 font-bold uppercase">Hedef: ${formatMoney(tgt)}</p>
+                                <p class="text-base font-black ${priceColor}">${formatMoney(curr)}</p>
+                            </div>
+                            <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="btn-interact ${isHit ? 'bg-emerald-500 text-black hover:bg-emerald-400' : 'axion-gradient text-white'} text-[10px] px-3.5 py-2 rounded-xl font-bold shadow-md flex items-center gap-1.5">
+                                <span>Satın Al</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                            </a>
+                        </div>
+                    </div>`;
+            });
+        }
+
+        // ============ DETAY MODAL ============
+        window.openDetailModal = function(item) {
+            const modal = document.getElementById('detailModal');
+            document.getElementById('modalProductName').innerText = item.name;
+            document.getElementById('modalStoreBadge').innerText = item.store || 'Web';
+            document.getElementById('modalCurrPrice').innerText = formatMoney(item.current_price);
+            document.getElementById('modalTgtPrice').innerText = formatMoney(item.target_price);
+            document.getElementById('modalInitPrice').innerText = formatMoney(item.initial_price || item.current_price);
+            document.getElementById('modalExternalLink').href = item.url;
+
+            const currP = parseFloat(item.current_price);
+            const tgtP = parseFloat(item.target_price);
+            const initP = parseFloat(item.initial_price) || currP;
+            const aiInsightEl = document.getElementById('aiInsightText');
+
+            if (currP <= tgtP) {
+                aiInsightEl.innerText = "🎯 Hedefe ulaşıldı! Alım için ideal zaman olabilir.";
+            } else {
+                const diffPercent = (((currP - tgtP) / tgtP) * 100).toFixed(1);
+                const totalDrop = (((initP - currP) / initP) * 100).toFixed(1);
+                if (parseFloat(totalDrop) > 0) {
+                    aiInsightEl.innerText = `📈 İlk fiyattan %${totalDrop} düştü. Hedefe %${diffPercent} kaldı. Trend takip ediliyor.`;
+                } else {
+                    aiInsightEl.innerText = `📊 Hedefe %${diffPercent} kaldı. AI fiyat hareketlerini izliyor.`;
+                }
+            }
+
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            if(priceChartInstance) priceChartInstance.destroy();
+
+            const labels = ['İlk', 'Güncel'];
+            const dataPoints = [initP, currP];
+            document.getElementById('chartPointCount').innerText = `${dataPoints.length} nokta`;
+
+            priceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Fiyat (₺)',
+                        data: dataPoints,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.3,
+                        pointBackgroundColor: '#3b82f6',
+                        pointBorderColor: '#fff',
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { display: false } },
+                        y: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { color: 'rgba(255,255,255,0.05)' } }
+                    }
+                }
+            });
+        };
+
+        window.closeDetailModal = function() {
+            document.getElementById('detailModal').classList.add('hidden');
+            document.getElementById('detailModal').classList.remove('flex');
+        };
+
+        window.deleteProduct = async function(id) {
+            const confirmed = await customConfirm("Bu ürünü silmek istiyor musunuz?");
+            if(!confirmed) return;
+            const { error } = await db.from('products').delete().eq('id', id);
+            if(error) showToast("Silinemedi.", "error");
+            else { showToast("Ürün silindi.", "success"); loadProducts(); }
+        };
+
+        // ============ ÜRÜN EKLEME ============
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const addBtn = document.getElementById('addProductBtn');
+                addBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Ekleniyor...</span>`;
+                addBtn.disabled = true;
+
+                try {
+                    const cPrice = parseFloat(document.getElementById('pCurrent').value);
+                    const tPrice = parseFloat(document.getElementById('pTarget').value);
+
+                    if (isNaN(cPrice) || cPrice <= 0) {
+                        throw new Error("Canlı fiyat yok. Manuel giriş gerekli.");
+                    }
+                    if (isNaN(tPrice) || tPrice <= 0) {
+                        throw new Error("Hedef fiyat geçersiz.");
+                    }
+
+                    const newProduct = {
+                        user_id: currentUser.id,
+                        name: document.getElementById('pName').value.trim() || 'Ürün',
+                        store: document.getElementById('pStore').value || 'Web',
+                        target_price: tPrice,
+                        current_price: cPrice,
+                        initial_price: cPrice,
+                        url: document.getElementById('pUrl').value.trim()
+                    };
+
+                    const { error } = await db.from('products').insert([newProduct]);
+                    if(error) throw error;
+                    
+                    showToast("Ürün radara eklendi! 🚀", "success");
+                    e.target.reset();
+                    document.getElementById('statusBanner').classList.add('hidden');
+                    switchTab('home');
+                } catch(err) {
+                    showToast(err.message || "Ekleme hatası.", "error");
+                } finally {
+                    addBtn.innerHTML = `<span>Radara Ekle ve Takibi Başlat</span> <i class="fa-solid fa-rocket text-xs"></i>`;
+                    addBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
