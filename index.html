@@ -55,7 +55,8 @@
         <div id="productList" class="space-y-3">
             <div class="text-center py-12 text-gray-500 text-xs">
                 <i class="fa-solid fa-circle-notch fa-spin text-lg mb-2 text-orange-500"></i>
-                <p>Axion veritabanı taranıyor...</p>
+                <p>Axion sunucusuna bağlanılıyor...</p>
+                <p class="text-[10px] text-gray-600 mt-1">(Sunucu uyanıyor olabilir, birkaç saniye sürebilir)</p>
             </div>
         </div>
     </main>
@@ -138,4 +139,176 @@
         <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center text-gray-400 text-xs">
             <i class="fa-solid fa-sliders text-base mb-1"></i>
             <span>Sistem</span>
-        </button
+        </button>
+    </nav>
+
+    <script>
+        const API_URL = "https://fiyat-takip-backend.onrender.com/api";
+
+        function switchTab(tab) {
+            ['home', 'add', 'settings'].forEach(t => {
+                const tabEl = document.getElementById(`tab-${t}`);
+                const navEl = document.getElementById(`nav-${t}`);
+                if (tabEl) tabEl.classList.add('hidden');
+                if (navEl) {
+                    navEl.classList.remove('nav-active', 'text-orange-500');
+                    navEl.classList.add('text-gray-400');
+                }
+            });
+
+            const activeTab = document.getElementById(`tab-${tab}`);
+            const activeNav = document.getElementById(`nav-${tab}`);
+            
+            if (activeTab) activeTab.classList.remove('hidden');
+            if (activeNav) {
+                activeNav.classList.add('nav-active', 'text-orange-500');
+                activeNav.classList.remove('text-gray-400');
+            }
+
+            if (tab === 'home') loadProducts();
+        }
+
+        async function loadProducts() {
+            const container = document.getElementById('productList');
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 12000); // 12sn zaman aşımı
+
+                const res = await fetch(`${API_URL}/products`, { signal: controller.signal });
+                clearTimeout(timeoutId);
+
+                if(!res.ok) throw new Error("Sunucu yanıt vermedi");
+
+                const data = await res.json();
+                document.getElementById('productCount').innerText = data.length || 0;
+                container.innerHTML = '';
+
+                if (!Array.isArray(data) || data.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-12 card-custom rounded-2xl">
+                            <i class="fa-solid fa-crosshairs text-3xl text-gray-600 mb-2"></i>
+                            <p class="text-xs text-gray-400">Axion radarında henüz ürün yok.</p>
+                            <button onclick="switchTab('add')" class="mt-3 text-xs axion-gradient text-white px-3.5 py-2 rounded-xl font-bold">İlk Ürünü Ekleyin</button>
+                        </div>`;
+                    return;
+                }
+
+                data.forEach((item, index) => {
+                    const isTarget = item.current_price <= item.target_price;
+                    const chartId = `chart-${index}`;
+
+                    container.innerHTML += `
+                        <div class="card-custom rounded-2xl p-4 relative ${isTarget ? 'border-emerald-500/50 shadow-lg shadow-emerald-950/20' : ''}">
+                            ${isTarget ? '<span class="absolute top-0 right-0 bg-emerald-500 text-black font-black text-[9px] px-2.5 py-0.5 rounded-bl-lg">🎯 HEDEF FİYAT KAZANILDI</span>' : ''}
+                            
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] bg-gray-800 text-orange-400 font-bold px-2 py-0.5 rounded-md">${item.store || 'Mağaza'}</span>
+                            </div>
+                            <h3 class="font-bold text-sm text-gray-100 mb-2">${item.name}</h3>
+                            
+                            <div class="my-2 h-20 w-full">
+                                <canvas id="${chartId}"></canvas>
+                            </div>
+
+                            <div class="flex justify-between items-end pt-2 border-t border-gray-800">
+                                <div>
+                                    <p class="text-[10px] text-gray-400">Hedef: ${(item.target_price || 0).toLocaleString('tr-TR')} ₺</p>
+                                    <p class="text-lg font-extrabold text-emerald-400">${(item.current_price || 0).toLocaleString('tr-TR')} ₺</p>
+                                </div>
+                                <a href="${item.url}" target="_blank" class="axion-gradient hover:opacity-90 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1">
+                                    <span>İncele</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                                </a>
+                            </div>
+                        </div>
+                    `;
+
+                    setTimeout(() => renderChart(chartId, item.initial_price || item.current_price, item.current_price), 100);
+                });
+            } catch (err) {
+                console.error("Axion veri hatası:", err);
+                container.innerHTML = `
+                    <div class="text-center py-12 card-custom rounded-2xl">
+                        <i class="fa-solid fa-triangle-exclamation text-3xl text-orange-500 mb-2"></i>
+                        <p class="text-xs text-gray-300 font-bold">Sunucu Hazırlanıyor</p>
+                        <p class="text-[10px] text-gray-500 mt-1 max-w-xs mx-auto">Render sunucusu uykudan uyanıyor olabilir. Lütfen birkaç saniye bekleyip tekrar deneyin.</p>
+                        <button onclick="loadProducts()" class="mt-3 text-xs bg-gray-800 border border-gray-700 text-white px-3.5 py-2 rounded-xl font-bold hover:bg-gray-700">Tekrar Dene</button>
+                    </div>`;
+            }
+        }
+
+        function renderChart(id, startPrice, currentPrice) {
+            const ctx = document.getElementById(id);
+            if(!ctx) return;
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Başlangıç', 'Güncel'],
+                    datasets: [{
+                        data: [startPrice, currentPrice],
+                        borderColor: '#10b981',
+                        borderWidth: 2,
+                        stepped: true,
+                        fill: false,
+                        pointBackgroundColor: '#10b981'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+        }
+
+        async function addNewProduct(e) {
+            e.preventDefault();
+            const btn = document.getElementById('submitBtn');
+            btn.innerText = "Ekleniyor...";
+            btn.disabled = true;
+
+            try {
+                const newProduct = {
+                    name: document.getElementById('pName').value,
+                    store: document.getElementById('pStore').value,
+                    target_price: parseFloat(document.getElementById('pTarget').value),
+                    url: document.getElementById('pUrl').value,
+                    initial_price: parseFloat(document.getElementById('pTarget').value)
+                };
+
+                await fetch(`${API_URL}/add-product`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newProduct)
+                });
+
+                e.target.reset();
+                switchTab('home');
+            } catch (err) {
+                alert("Ürün eklenirken bir hata oluştu, lütfen tekrar deneyin.");
+            } finally {
+                btn.innerText = "Radara Al 🚀";
+                btn.disabled = false;
+            }
+        }
+
+        async function triggerPriceCheck() {
+            const btn = document.getElementById('refreshBtn');
+            btn.querySelector('span').innerText = "Taranıyor...";
+            btn.disabled = true;
+
+            try {
+                await fetch(`${API_URL}/check-prices`, { method: 'POST' });
+                await loadProducts();
+            } catch(e) {
+                console.error(e);
+            } finally {
+                btn.querySelector('span').innerText = "Tara";
+                btn.disabled = false;
+            }
+        }
+
+        loadProducts();
+    </script>
+</body>
+</html>
