@@ -3,137 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>İndirim Avcısı & Fiyat Takip</title>
+    <title>Axion - Smart Price Tracking</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #090d16; color: #f3f4f6; }
+        .nav-active { color: #f97316; }
+        .card-custom { background-color: #111827; border: 1px solid #1f2937; }
+        .axion-gradient { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+    </style>
 </head>
-<body class="bg-gray-950 text-white font-sans min-h-screen pb-20">
+<body class="font-sans min-h-screen pb-24 select-none">
 
-    <!-- Üst Bar -->
-    <div class="p-4 bg-gray-900 border-b border-gray-800 flex justify-between items-center sticky top-0 z-50">
-        <div>
-            <h1 class="text-lg font-bold text-orange-500">🔥 Kara Cuma İndirim Avcısı</h1>
-            <p class="text-[10px] text-gray-400">Trendyol, Amazon, Hepsiburada Takip</p>
+    <!-- Üst Bar / Header -->
+    <header class="p-4 bg-[#111827] border-b border-gray-800 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center space-x-2.5">
+            <div class="axion-gradient text-white w-9 h-9 rounded-xl flex items-center justify-center font-black text-lg tracking-tighter shadow-lg shadow-orange-950/40">
+                AX
+            </div>
+            <div>
+                <h1 class="text-base font-black text-white tracking-wider flex items-center gap-1">
+                    AXION <span class="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.2 rounded font-mono">PRO</span>
+                </h1>
+                <p class="text-[9px] text-gray-400 tracking-tight">Price Intelligence Engine</p>
+            </div>
         </div>
-        <button onclick="triggerPriceCheck()" id="refreshBtn" class="bg-orange-600 hover:bg-orange-500 text-white text-xs px-3 py-2 rounded-xl font-bold">
-            🔄 Güncelle
+        <button onclick="triggerPriceCheck()" id="refreshBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs px-3 py-2 rounded-xl border border-gray-700 font-bold flex items-center gap-1.5 transition">
+            <i class="fa-solid fa-rotate-right text-orange-500"></i>
+            <span>Tara</span>
         </button>
-    </div>
+    </header>
 
-    <!-- Yeni Ürün Ekleme Alanı -->
-    <div class="p-4 max-w-md mx-auto">
-        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-6">
-            <h2 class="text-sm font-bold text-gray-200 mb-3">➕ Takip Edilecek Ürün Ekle</h2>
+    <!-- TAB 1: ANASAYFA / TAKİP LİSTESİ -->
+    <main id="tab-home" class="p-4 space-y-4 max-w-md mx-auto">
+        <!-- Özet Bilgi Kartı -->
+        <div class="card-custom p-4 rounded-2xl bg-gradient-to-r from-orange-950/30 via-gray-900 to-gray-900">
+            <div class="flex justify-between items-center">
+                <div>
+                    <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">● Radar Aktif</span>
+                    <h2 class="text-sm font-bold text-gray-100 mt-1">Takip Edilen Ürünler</h2>
+                </div>
+                <div class="text-right">
+                    <span id="productCount" class="text-2xl font-black text-orange-500">0</span>
+                    <p class="text-[9px] text-gray-400">Canlı Ürün</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ürünler Listesi -->
+        <div id="productList" class="space-y-3">
+            <div class="text-center py-12 text-gray-500 text-xs">
+                <i class="fa-solid fa-circle-notch fa-spin text-lg mb-2 text-orange-500"></i>
+                <p>Axion veritabanı taranıyor...</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- TAB 2: ÜRÜN EKLE -->
+    <section id="tab-add" class="p-4 max-w-md mx-auto hidden space-y-4">
+        <div class="card-custom p-5 rounded-2xl">
+            <h2 class="text-base font-bold text-gray-100 mb-1">Axion Radarına Ekle</h2>
+            <p class="text-xs text-gray-400 mb-4">Takip etmek istediğin ürünün adresini yapıştır.</p>
+            
             <form onsubmit="addNewProduct(event)" class="space-y-3">
-                <input type="text" id="pName" placeholder="Ürün Adı (Örn: PS5 Slim)" required class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Ürün Adı</label>
+                    <input type="text" id="pName" placeholder="Örn: DualSense PS5 Kolu" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                </div>
                 
                 <div class="grid grid-cols-2 gap-2">
-                    <select id="pStore" class="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
-                        <option value="Amazon">Amazon</option>
-                        <option value="Trendyol">Trendyol</option>
-                        <option value="Hepsiburada">Hepsiburada</option>
-                        <option value="Teknosa">Teknosa</option>
-                    </select>
-                    <input type="number" id="pTarget" placeholder="Hedef Fiyat (₺)" required class="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1">Platform</label>
+                        <select id="pStore" class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                            <option value="Amazon">Amazon TR</option>
+                            <option value="Trendyol">Trendyol</option>
+                            <option value="Hepsiburada">Hepsiburada</option>
+                            <option value="Teknosa">Teknosa</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-gray-400 block mb-1">Hedef Fiyat (₺)</label>
+                        <input type="number" id="pTarget" placeholder="2500" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                    </div>
                 </div>
 
-                <input type="url" id="pUrl" placeholder="Ürün Linki (https://...)" required class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
-                
-                <button type="submit" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold text-xs py-2.5 rounded-xl">
-                    Takibe Al 🚀
+                <div>
+                    <label class="text-xs text-gray-400 block mb-1">Ürün Linki (URL)</label>
+                    <input type="url" id="pUrl" placeholder="https://..." required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                </div>
+
+                <button type="submit" id="submitBtn" class="w-full axion-gradient hover:opacity-90 text-white font-bold text-xs py-3 rounded-xl mt-2 transition shadow-lg shadow-orange-950/30">
+                    Radara Al 🚀
                 </button>
             </form>
         </div>
+    </section>
 
-        <!-- Takip Edilen Ürünler Listesi -->
-        <h2 class="text-sm font-bold text-gray-300 mb-3">📦 Takipteki Ürünlerin</h2>
-        <div id="productList" class="space-y-3">
-            <p class="text-xs text-gray-500 text-center py-6">Yükleniyor...</p>
+    <!-- TAB 3: AYARLAR -->
+    <section id="tab-settings" class="p-4 max-w-md mx-auto hidden space-y-4">
+        <div class="card-custom p-5 rounded-2xl space-y-4">
+            <h2 class="text-base font-bold text-gray-100 border-b border-gray-800 pb-2">Axion Sistem Ayarları</h2>
+            
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-bold text-gray-200">Arka Plan Taraması</p>
+                    <p class="text-[10px] text-gray-400">7/24 Fiyat analizi motoru</p>
+                </div>
+                <span class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-md font-bold">Aktif</span>
+            </div>
+
+            <div class="flex items-center justify-between pt-2 border-t border-gray-800">
+                <div>
+                    <p class="text-xs font-bold text-gray-200">Render Cloud Node</p>
+                    <p class="text-[10px] text-gray-400">Backend Sunucu Bağlantısı</p>
+                </div>
+                <span class="text-xs bg-blue-950 text-blue-400 border border-blue-800 px-2 py-0.5 rounded-md font-bold">Online</span>
+            </div>
         </div>
-    </div>
+    </section>
 
-    <script>
-        // Senin Render Sunucu Adresin
-        const API_URL = "https://fiyat-takip-backend.onrender.com/api";
-
-        async function loadProducts() {
-            try {
-                const res = await fetch(`${API_URL}/products`);
-                const data = await res.json();
-                const container = document.getElementById('productList');
-                container.innerHTML = '';
-
-                if(data.length === 0) {
-                    container.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">Henüz takip edilen ürün yok.</p>';
-                    return;
-                }
-
-                data.forEach(item => {
-                    const isTarget = item.current_price <= item.target_price;
-
-                    container.innerHTML += `
-                        <div class="bg-gray-900 border ${isTarget ? 'border-green-500 shadow-lg shadow-green-950' : 'border-gray-800'} rounded-2xl p-4 relative">
-                            ${isTarget ? '<span class="absolute top-0 right-0 bg-green-500 text-black font-black text-[9px] px-2.5 py-0.5 rounded-bl-lg">🎯 HEDEFE DÜŞTÜ</span>' : ''}
-                            <div class="flex justify-between items-start mb-1">
-                                <span class="text-[10px] bg-gray-800 text-orange-400 font-bold px-2 py-0.5 rounded-md">${item.store}</span>
-                            </div>
-                            <h3 class="font-bold text-sm text-gray-100 mb-2">${item.name}</h3>
-                            
-                            <div class="flex justify-between items-end mt-3 pt-2 border-t border-gray-800/60">
-                                <div>
-                                    <p class="text-[10px] text-gray-400">Hedef: ${item.target_price.toLocaleString('tr-TR')} ₺</p>
-                                    <p class="text-xl font-extrabold text-green-400">${item.current_price.toLocaleString('tr-TR')} ₺</p>
-                                </div>
-                                <a href="${item.url}" target="_blank" class="bg-orange-600 text-white text-xs px-3 py-1.5 rounded-xl font-bold">
-                                    Satın Al ↗
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (err) {
-                console.error("Hata:", err);
-            }
-        }
-
-        async function addNewProduct(e) {
-            e.preventDefault();
-            const btn = e.target.querySelector('button');
-            btn.innerText = "Ekleniyor...";
-            btn.disabled = true;
-
-            const newProduct = {
-                name: document.getElementById('pName').value,
-                store: document.getElementById('pStore').value,
-                target_price: document.getElementById('pTarget').value,
-                url: document.getElementById('pUrl').value,
-                initial_price: document.getElementById('pTarget').value
-            };
-
-            await fetch(`${API_URL}/add-product`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newProduct)
-            });
-
-            e.target.reset();
-            btn.innerText = "Takibe Al 🚀";
-            btn.disabled = false;
-            loadProducts();
-        }
-
-        async function triggerPriceCheck() {
-            const btn = document.getElementById('refreshBtn');
-            btn.innerText = "⏳ Tarama Yapılıyor...";
-            btn.disabled = true;
-
-            await fetch(`${API_URL}/check-prices`, { method: 'POST' });
-            await loadProducts();
-
-            btn.innerText = "🔄 Güncelle";
-            btn.disabled = false;
-        }
-
-        loadProducts();
-    </script>
-</body>
-</html>
+    <!-- ALT GEZİNME BAR (BOTTOM NAV) -->
+    <nav class="fixed bottom-0 left-0 right-0 bg-[#111827] border-t border-gray-800 py-3 px-8 flex justify-around items-center z-50 max-w-md mx-auto">
+        <button onclick="switchTab('home')" id="nav-home" class="nav-active flex flex-col items-center text-xs">
+            <i class="fa-solid fa-chart-line text-base mb-1"></i>
+            <span>Radar</span>
+        </button>
+        <button onclick="switchTab('add')" id="nav-add" class="flex flex-col items-center text-gray-400 text-xs">
+            <div class="axion-gradient text-white p-2.5 rounded-full -mt-6 border-4 border-[#090d16] shadow-md shadow-orange-950/50">
+                <i class="fa-solid fa-plus text-sm"></i>
+            </div>
+            <span>Ekle</span>
+        </button>
+        <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center text-gray-400 text-xs">
+            <i class="fa-solid fa-sliders text-base mb-1"></i>
+            <span>Sistem</span>
+        </button
