@@ -1,103 +1,138 @@
-import time
-import requests
-from bs4 import BeautifulSoup
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+import os
+import re
+import asyncio
+from playwright.async_api import async_playwright
+from supabase import create_client
 
-app = Flask(__name__)
-CORS(app)
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# Takip edilecek ürünler veritabanı (Memory/Database)
-tracked_products = [
-    {
-        "id": 1,
-        "name": "PlayStation 5 Slim 1TB",
-        "store": "Amazon",
-        "url": "https://www.amazon.com.tr/dp/B0CL5KNB9M",
-        "target_price": 18000,
-        "current_price": 20999,
-        "historic_low": 19500,
-        "category": "Elektronik"
-    }
-]
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7'
-}
-
-def fetch_live_price(url, store):
-    """Siteden canlı fiyatı çeken scraping fonksiyonu"""
+def clean_price(text: str):
+    if not text:
+        return None
+    cleaned = re.sub(r'[^\d,.]', '', text)
+    if ',' in cleaned and '.' in cleaned:
+        cleaned = cleaned.replace('.', '').replace(',', '.')
+    elif ',' in cleaned:
+        cleaned = cleaned.replace(',', '.')
     try:
-        response = requests.get(url, headers=HEADERS, timeout=10)
-        soup = BeautifulSoup(response.content, 'html.parser')
-        
-        if "amazon" in store.lower():
-            price_element = soup.find("span", {"class": "a-price-whole"})
-            if price_element:
-                price_str = price_element.text.replace('.', '').replace(',', '.').strip()
-                return float(price_str)
-        elif "trendyol" in store.lower():
-            price_element = soup.find("span", {"class": "prc-dsc"})
-            if price_element:
-                price_str = price_element.text.replace('TL', '').replace('.', '').replace(',', '.').strip()
-                return float(price_str)
-    except Exception as e:
-        print(f"Fiyat çekme hatası ({store}):", e)
+        return float(cleaned)
+    except ValueError:
+        return None
+
+async def extract_price_from_page(page, store: str):
+    # 1) JSON-LD
+    try:
+        json_ld = await page.evaluate("""
+            () => {
+                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
+                for (const s of scripts) {
+                    try {
+                        const data = JSON.parse(s.textContent);
+                        const items = Array.isArray(data) ? data : [data];
+                        for (const item of items) {
+                            if (item.offers) {
+                                const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
+                                if (offer.price) return parseFloat(offer.price);
+                                if (offer.lowPrice) return parseFloat(offer.lowPrice);
+                            }
+                        }
+                    } catch(e) {}
+                }
+                return null;
+            }
+        """)
+        if json_ld:
+            return json_ld
+    except:
+        pass
+
+    # 2) Siteye özel selector'lar
+    selectors = []
+    store_lower = (store or "").lower()
+    if "trendyol" in store_lower:
+        selectors = ['.prc-dsc', '.prc-slg', '[class*="price"]']
+    elif "amazon" in store_lower:
+        selectors = ['.a-price-whole', '.a-offscreen', '#priceblock_ourprice']
+    elif "hepsiburada" in store_lower:
+        selectors = ['[data-test-id="price-current-price"]', '[class*="price"]']
+
+    for sel in selectors:
+        try:
+            el = await page.query_selector(sel)
+            if el:
+                text = await el.inner_text()
+                price = clean_price(text)
+                if price and price > 0:
+                    return price
+        except:
+            continue
     return None
 
-def send_telegram_alert(product_name, old_price, new_price, url):
-    """Şaşırtıcı indirim olduğunda telefona Telegram bildirimi gönderir"""
-    bot_token = "YOUR_TELEGRAM_BOT_TOKEN"
-    chat_id = "YOUR_CHAT_ID"
-    message = (
-        f"🚨 **ŞAŞIRTICI İNDİRİM ALARMI!** 🚨\n\n"
-        f"📦 **Ürün:** {product_name}\n"
-        f"📉 **Eski Fiyat:** {old_price} TL\n"
-        f"🔥 **YENİ FİYAT:** {new_price} TL\n"
-        f"🔗 **Satın Al:** {url}"
+async def scrape_one(browser, product: dict):
+    url = product.get("url")
+    store = product.get("store", "")
+    if not url or not url.startswith("http"):
+        return None
+    page = await browser.new_page(
+        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        locale="tr-TR"
     )
-    send_url = f"https://api.telegram.org/bot{bot_token}/sendMessage?chat_id={chat_id}&text={message}&parse_mode=Markdown"
-    requests.get(send_url)
+    try:
+        await page.goto(url, wait_until="domcontentloaded", timeout=20000)
+        await page.wait_for_timeout(2000)
+        price = await extract_price_from_page(page, store)
+        return price
+    except Exception as e:
+        print(f"  Hata ({product.get('name', '?')[:30]}): {e}")
+        return None
+    finally:
+        await page.close()
 
-@app.route('/api/products', methods=['GET'])
-def get_products():
-    return jsonify(tracked_products)
-
-@app.route('/api/add-product', methods=['POST'])
-def add_product():
-    data = request.json
-    live_price = fetch_live_price(data['url'], data['store']) or float(data['initial_price'])
+async def main():
+    print("=== Axion Fiyat Botu Başladı ===")
     
-    new_item = {
-        "id": len(tracked_products) + 1,
-        "name": data['name'],
-        "store": data['store'],
-        "url": data['url'],
-        "target_price": float(data['target_price']),
-        "current_price": live_price,
-        "historic_low": live_price,
-        "category": data.get('category', 'Genel')
-    }
-    tracked_products.append(new_item)
-    return jsonify({"status": "success", "product": new_item})
+    # Supabase'den tüm ürünleri çek
+    result = supabase.table("products").select("*").execute()
+    products = result.data or []
+    print(f"Toplam {len(products)} ürün bulundu.")
 
-@app.route('/api/check-prices', methods=['POST'])
-def check_prices():
-    """Tüm siteleri gezip indirimi kontrol eder"""
-    alerts = []
-    for item in tracked_products:
-        fetched_price = fetch_live_price(item['url'], item['store'])
-        if fetched_price:
-            old_p = item['current_price']
-            item['current_price'] = fetched_price
-            
-            # Fiyat düşmüşse veya Hedef Fiyata ulaşmışsa
-            if fetched_price <= item['target_price'] or fetched_price < old_p * 0.85:
-                alerts.append(item)
-                send_telegram_alert(item['name'], old_p, fetched_price, item['url'])
-                
-    return jsonify({"status": "checked", "alerts_triggered": alerts})
+    if not products:
+        print("Ürün yok.")
+        return
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=True,
+            args=["--disable-blink-features=AutomationControlled"]
+        )
+        updated = 0
+        failed = 0
+
+        for i, product in enumerate(products, 1):
+            name = (product.get("name") or "?")[:40]
+            print(f"[{i}/{len(products)}] {name}...")
+
+            price = await scrape_one(browser, product)
+
+            if price and price > 0:
+                old_price = float(product.get("current_price") or 0)
+                if price != old_price:
+                    supabase.table("products").update(
+                        {"current_price": price}
+                    ).eq("id", product["id"]).execute()
+                    print(f"  ✅ {old_price} → {price} TL")
+                    updated += 1
+                else:
+                    print(f"  ➖ Değişmedi: {price} TL")
+            else:
+                print(f"  ❌ Fiyat çekilemedi")
+                failed += 1
+
+        await browser.close()
+    print(f"=== Bitti: {updated} güncellendi, {failed} başarısız ===")
+
+if __name__ == "__main__":
+    asyncio.run(main())
