@@ -2,301 +2,521 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Axion - Smart Price Tracking</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#060911">
+    <title>Axion Pro - Yapay Zeka Destekli Fiyat İstihbaratı</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
     <style>
-        body { background-color: #090d16; color: #f3f4f6; }
-        .nav-active { color: #f97316; }
-        .card-custom { background-color: #111827; border: 1px solid #1f2937; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap');
+        
+        * { -webkit-tap-highlight-color: transparent; }
+        body { 
+            background: radial-gradient(ellipse at top, #0f1729 0%, #060911 50%);
+            color: #f3f4f6; 
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        .glass-card { 
+            background: rgba(17, 24, 39, 0.7); 
+            backdrop-filter: blur(12px); 
+            border: 1px solid rgba(255, 255, 255, 0.08); 
+        }
+        .glass-nav { 
+            background: rgba(11, 15, 25, 0.92); 
+            backdrop-filter: blur(16px); 
+            border-top: 1px solid rgba(255, 255, 255, 0.08); 
+        }
+        .axion-glow { box-shadow: 0 0 25px -5px rgba(249, 115, 22, 0.4); }
         .axion-gradient { background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); }
+        .ai-gradient { background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%); }
+
+        .btn-interact { transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .btn-interact:active { transform: scale(0.94); filter: brightness(0.9); }
+        .card-hover { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+        .card-hover:hover { transform: translateY(-2px); border-color: rgba(249, 115, 22, 0.3); }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(-20px) scale(0.9); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px -5px rgba(139, 92, 246, 0.5); }
+            50% { box-shadow: 0 0 30px 0px rgba(139, 92, 246, 0.8); }
+        }
+        @keyframes priceFlash {
+            0% { background: rgba(16, 185, 129, 0.3); }
+            100% { background: transparent; }
+        }
+        .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-toast { animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        .animate-ai { animation: pulse-glow 2s ease-in-out infinite; }
+        .price-flash { animation: priceFlash 1.5s ease-out; }
+
+        .ai-thinking {
+            display: inline-block;
+            width: 8px; height: 8px;
+            background: #8b5cf6;
+            border-radius: 50%;
+            animation: aiDot 1.4s infinite;
+        }
+        .ai-thinking:nth-child(2) { animation-delay: 0.2s; }
+        .ai-thinking:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes aiDot {
+            0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+            40% { opacity: 1; transform: scale(1.2); }
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #374151; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #f97316; }
+
+        input:focus, select:focus { box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1); }
     </style>
 </head>
-<body class="font-sans min-h-screen pb-24 select-none">
+<body class="pb-28 select-none">
 
-    <!-- Üst Bar / Header -->
-    <header class="p-4 bg-[#111827] border-b border-gray-800 flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center space-x-2.5">
-            <div class="axion-gradient text-white w-9 h-9 rounded-xl flex items-center justify-center font-black text-lg tracking-tighter shadow-lg shadow-orange-950/40">
-                AX
-            </div>
-            <div>
-                <h1 class="text-base font-black text-white tracking-wider flex items-center gap-1">
-                    AXION <span class="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.2 rounded font-mono">PRO</span>
-                </h1>
-                <p class="text-[9px] text-gray-400 tracking-tight">Price Intelligence Engine</p>
-            </div>
-        </div>
-        <button onclick="triggerPriceCheck()" id="refreshBtn" class="bg-gray-800 hover:bg-gray-700 text-gray-200 text-xs px-3 py-2 rounded-xl border border-gray-700 font-bold flex items-center gap-1.5 transition">
-            <i class="fa-solid fa-rotate-right text-orange-500"></i>
-            <span>Tara</span>
-        </button>
-    </header>
+    <!-- TOAST -->
+    <div id="toastContainer" class="fixed top-5 left-1/2 -translate-x-1/2 z-[120] w-11/12 max-w-sm space-y-2"></div>
 
-    <!-- TAB 1: ANASAYFA / TAKİP LİSTESİ -->
-    <main id="tab-home" class="p-4 space-y-4 max-w-md mx-auto">
-        <!-- Özet Bilgi Kartı -->
-        <div class="card-custom p-4 rounded-2xl bg-gradient-to-r from-orange-950/30 via-gray-900 to-gray-900">
-            <div class="flex justify-between items-center">
+    <!-- AUTH MODAL -->
+    <div id="authModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 backdrop-blur-md">
+        <div class="glass-card w-full max-w-md p-6 rounded-3xl border border-gray-800 animate-slide-up shadow-2xl">
+            <div class="text-center mb-6">
+                <div class="axion-gradient w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 font-black text-2xl text-white shadow-lg axion-glow">
+                    AX
+                </div>
+                <h2 class="text-xl font-black text-white tracking-wide">Axion Intelligence</h2>
+                <p class="text-xs text-gray-400 mt-1">AI Destekli Fiyat Takip Platformu</p>
+            </div>
+
+            <div id="verifyNotice" class="hidden mb-5 p-5 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-center animate-slide-up space-y-3">
+                <i class="fa-solid fa-envelope-circle-check text-4xl text-orange-400"></i>
                 <div>
-                    <span class="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-bold">● Radar Aktif</span>
-                    <h2 class="text-sm font-bold text-gray-100 mt-1">Takip Edilen Ürünler</h2>
+                    <h3 class="text-sm font-bold text-white">E-Posta Doğrulaması Gereklidir</h3>
+                    <p class="text-[11px] text-gray-300 mt-1 leading-relaxed">
+                        <b id="registeredEmailText" class="text-orange-400"></b> adresinize gönderdiğimiz doğrulama bağlantısına tıklayın.
+                    </p>
                 </div>
-                <div class="text-right">
-                    <span id="productCount" class="text-2xl font-black text-orange-500">0</span>
-                    <p class="text-[9px] text-gray-400">Canlı Ürün</p>
+                <div class="pt-2 flex flex-col gap-2">
+                    <button type="button" id="resendBtn" class="btn-interact w-full text-xs bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition">
+                        <i class="fa-solid fa-paper-plane"></i> <span id="resendBtnText">Tekrar Gönder</span>
+                    </button>
+                    <button type="button" onclick="resetAuthView()" class="btn-interact w-full text-xs bg-gray-800 hover:bg-gray-700 text-gray-300 px-4 py-2 rounded-xl font-bold transition">
+                        Giriş Ekranına Dön
+                    </button>
                 </div>
             </div>
-        </div>
 
-        <!-- Ürünler Listesi -->
-        <div id="productList" class="space-y-3">
-            <div class="text-center py-12 text-gray-500 text-xs">
-                <i class="fa-solid fa-circle-notch fa-spin text-lg mb-2 text-orange-500"></i>
-                <p>Axion veritabanı taranıyor...</p>
+            <div id="authFormContainer">
+                <div class="flex p-1 bg-[#090d16] border border-gray-800 rounded-2xl mb-5">
+                    <button type="button" id="tabLoginBtn" class="btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md">
+                        Giriş Yap
+                    </button>
+                    <button type="button" id="tabRegisterBtn" class="btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white">
+                        Kayıt Ol
+                    </button>
+                </div>
+
+                <form id="authForm" class="space-y-3">
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">E-posta</label>
+                        <input type="email" id="authEmail" placeholder="ornek@mail.com" required autocomplete="email" class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                    </div>
+                    <div>
+                        <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Şifre</label>
+                        <input type="password" id="authPassword" placeholder="••••••••" required minlength="6" autocomplete="current-password" class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                    </div>
+                    <div id="confirmPasswordGroup" class="hidden">
+                        <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Şifre Tekrarı</label>
+                        <input type="password" id="authConfirmPassword" placeholder="••••••••" class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                    </div>
+
+                    <button type="submit" id="mainAuthBtn" class="btn-interact w-full axion-gradient text-white font-bold text-xs py-3.5 rounded-xl transition shadow-lg shadow-orange-950/40 mt-2 flex items-center justify-center gap-2">
+                        <span>Giriş Yap</span>
+                    </button>
+                </form>
             </div>
         </div>
-    </main>
+    </div>
 
-    <!-- TAB 2: ÜRÜN EKLE (İstediğin Gibi Adı Sen Yazarsın) -->
-    <section id="tab-add" class="p-4 max-w-md mx-auto hidden space-y-4">
-        <div class="card-custom p-5 rounded-2xl">
-            <h2 class="text-base font-bold text-gray-100 mb-1">Axion Radarına Ekle</h2>
-            <p class="text-xs text-gray-400 mb-4">Ürün adını sen gir, linki yapıştır, fiyatı sistem otomatik çözsün.</p>
+    <!-- APP -->
+    <div id="appContent" class="hidden">
+        <header class="p-4 bg-[#0b0f19]/80 backdrop-blur-md border-b border-gray-800 flex justify-between items-center sticky top-0 z-50">
+            <div class="flex items-center space-x-3">
+                <div class="axion-gradient text-white w-9 h-9 rounded-xl flex items-center justify-center font-black text-lg tracking-tighter shadow-md axion-glow">
+                    AX
+                </div>
+                <div>
+                    <h1 class="text-sm font-black text-white tracking-wider flex items-center gap-1.5">
+                        AXION <span class="text-[9px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-1.5 py-0.5 rounded font-mono font-bold">PRO v3.0</span>
+                    </h1>
+                    <p class="text-[9px] text-gray-400 truncate max-w-[180px]" id="userEmailDisplay">Yükleniyor...</p>
+                </div>
+            </div>
             
-            <form onsubmit="addNewProduct(event)" class="space-y-3">
-                <div>
-                    <label class="text-xs text-gray-400 block mb-1">Ürün Adı (Senin Girişin)</label>
-                    <input type="text" id="pName" placeholder="Örn: iPhone 15 128GB" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+            <div class="flex items-center gap-1.5">
+                <button onclick="openAiAssistant()" class="btn-interact ai-gradient text-white text-xs px-2.5 py-2 rounded-xl animate-ai flex items-center gap-1" title="AI Asistan">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </button>
+                <button onclick="logout()" class="btn-interact bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs px-3 py-2 rounded-xl border border-red-500/20 transition flex items-center gap-1">
+                    <i class="fa-solid fa-power-off"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- HOME -->
+        <main id="tab-home" class="p-4 space-y-4 max-w-md mx-auto animate-slide-up">
+            <div class="grid grid-cols-3 gap-2">
+                <div class="glass-card p-3 rounded-2xl text-center card-hover">
+                    <p class="text-[9px] text-gray-400 font-bold uppercase">Radarda</p>
+                    <span id="productCount" class="text-lg font-black text-orange-500">0</span>
+                </div>
+                <div class="glass-card p-3 rounded-2xl text-center card-hover">
+                    <p class="text-[9px] text-gray-400 font-bold uppercase">Hedefte</p>
+                    <span id="targetHitCount" class="text-lg font-black text-emerald-400">0</span>
+                </div>
+                <div class="glass-card p-3 rounded-2xl text-center card-hover">
+                    <p class="text-[9px] text-gray-400 font-bold uppercase">Tasarruf</p>
+                    <span id="totalSavings" class="text-lg font-black text-blue-400">0₺</span>
+                </div>
+            </div>
+
+            <!-- AI Insight Banner -->
+            <div id="aiInsightBanner" class="hidden glass-card p-4 rounded-2xl border border-purple-500/30 bg-purple-500/5 animate-slide-up">
+                <div class="flex items-start gap-2">
+                    <div class="ai-gradient w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-brain text-white text-xs"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[10px] font-bold text-purple-300 uppercase mb-0.5">AI İçgörü</p>
+                        <p id="aiInsightText" class="text-xs text-gray-300 leading-relaxed"></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Pills -->
+            <div id="filterPills" class="flex gap-2 overflow-x-auto pb-1" style="scrollbar-width:none;">
+                <button onclick="setFilter('all')" data-filter="all" class="filter-pill btn-interact flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full bg-orange-500 text-white">Tümü</button>
+                <button onclick="setFilter('target')" data-filter="target" class="filter-pill btn-interact flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full bg-gray-800 text-gray-400">🎯 Hedefte</button>
+                <button onclick="setFilter('dropped')" data-filter="dropped" class="filter-pill btn-interact flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full bg-gray-800 text-gray-400">📉 Düşen</button>
+                <button onclick="setFilter('rising')" data-filter="rising" class="filter-pill btn-interact flex-shrink-0 text-[10px] font-bold px-3 py-1.5 rounded-full bg-gray-800 text-gray-400">📈 Yükselen</button>
+            </div>
+
+            <div id="productList" class="space-y-3">
+                <div class="text-center py-12 text-gray-500 text-xs">
+                    <i class="fa-solid fa-circle-notch fa-spin text-lg mb-2 text-orange-500"></i>
+                    <p>Canlı veriler yükleniyor...</p>
+                </div>
+            </div>
+        </main>
+
+        <!-- ADD PRODUCT -->
+        <section id="tab-add" class="p-4 max-w-md mx-auto hidden space-y-4 animate-slide-up">
+            <div class="glass-card p-5 rounded-3xl border border-gray-800">
+                <h2 class="text-sm font-black text-gray-100 mb-1 flex items-center gap-2">
+                    <i class="fa-solid fa-bullseye text-orange-500"></i> Radara Ürün Ekle
+                </h2>
+                <p class="text-[10px] text-gray-400 mb-4">AI asistanı URL'den ürün bilgilerini otomatik çıkarır 🤖</p>
+                
+                <form id="addProductForm" class="space-y-3">
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ürün Linki (AI otomatik doldurur)</label>
+                        <div class="relative">
+                            <input type="url" id="pUrl" placeholder="https://..." required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 pr-10 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                            <button type="button" onclick="aiParseUrl()" class="btn-interact absolute right-1.5 top-1/2 -translate-y-1/2 ai-gradient text-white w-7 h-7 rounded-lg flex items-center justify-center">
+                                <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ürün Adı</label>
+                        <input type="text" id="pName" placeholder="Örn: Sony DualSense PS5" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Platform</label>
+                            <select id="pStore" class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                                <option value="Amazon">Amazon TR</option>
+                                <option value="Trendyol">Trendyol</option>
+                                <option value="Hepsiburada">Hepsiburada</option>
+                                <option value="N11">N11</option>
+                                <option value="MediaMarkt">MediaMarkt</option>
+                                <option value="Vatan">Vatan</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Mevcut Fiyat (₺)</label>
+                            <input type="number" id="pCurrent" placeholder="3500" step="0.01" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Hedef Fiyat (₺) <span class="text-emerald-400">- AI önerir: <span id="aiTargetSuggestion">-</span></span></label>
+                        <input type="number" id="pTarget" placeholder="2500" step="0.01" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                    </div>
+
+                    <div class="flex items-center gap-2 p-2.5 bg-purple-500/5 border border-purple-500/20 rounded-xl">
+                        <input type="checkbox" id="pAiMonitor" checked class="accent-purple-500">
+                        <label for="pAiMonitor" class="text-[10px] text-gray-300 flex-1">AI otomatik fiyat analizi ve akıllı bildirim</label>
+                    </div>
+
+                    <button type="submit" id="addProductBtn" class="btn-interact w-full axion-gradient text-white font-bold text-xs py-3.5 rounded-xl mt-2 transition flex items-center justify-center gap-2">
+                        <span>Takibe Başla 🚀</span>
+                    </button>
+                </form>
+            </div>
+
+            <div class="glass-card p-4 rounded-2xl border border-purple-500/20">
+                <h3 class="text-xs font-bold text-purple-300 mb-2 flex items-center gap-2">
+                    <i class="fa-solid fa-robot"></i> AI Özellikleri
+                </h3>
+                <ul class="space-y-1.5 text-[10px] text-gray-400">
+                    <li>✨ URL'den otomatik ürün tanıma</li>
+                    <li>🎯 Akıllı hedef fiyat önerisi</li>
+                    <li>📊 Fiyat trend analizi ve tahmini</li>
+                    <li>🔔 Kişiselleştirilmiş bildirim stratejisi</li>
+                    <li>💡 Tasarruf optimizasyon önerileri</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- AI ASSISTANT CHAT -->
+        <section id="tab-ai" class="p-4 max-w-md mx-auto hidden space-y-4 animate-slide-up">
+            <div class="glass-card p-5 rounded-3xl border border-purple-500/30">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="ai-gradient w-10 h-10 rounded-xl flex items-center justify-center animate-ai">
+                        <i class="fa-solid fa-brain text-white"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-black text-white">Axion AI</h2>
+                        <p class="text-[10px] text-gray-400">Fiyat istihbarat asistanınız</p>
+                    </div>
                 </div>
                 
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="text-xs text-gray-400 block mb-1">Platform</label>
-                        <select id="pStore" class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
-                            <option value="Amazon">Amazon TR</option>
-                            <option value="Trendyol">Trendyol</option>
-                            <option value="Hepsiburada">Hepsiburada</option>
-                            <option value="Teknosa">Teknosa</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs text-gray-400 block mb-1">Hedef Fiyat (₺)</label>
-                        <input type="number" id="pTarget" placeholder="2500" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                <div id="aiChatMessages" class="space-y-3 max-h-[50vh] overflow-y-auto mb-3">
+                    <div class="bg-purple-500/10 border border-purple-500/20 p-3 rounded-2xl">
+                        <p class="text-xs text-gray-200">👋 Merhaba! Ben Axion AI. Ürünleriniz hakkında fiyat analizi, tasarruf önerileri ve alım zamanlaması tavsiyeleri verebilirim. Ne sormak istersiniz?</p>
                     </div>
                 </div>
 
-                <div>
-                    <label class="text-xs text-gray-400 block mb-1">Ürün Linki (URL)</label>
-                    <input type="url" id="pUrl" placeholder="https://..." required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                <div class="flex gap-2">
+                    <input type="text" id="aiChatInput" placeholder="Örn: Hangi ürünü şimdi almalıyım?" class="flex-1 bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500 transition">
+                    <button onclick="sendAiMessage()" class="btn-interact ai-gradient text-white px-4 rounded-xl">
+                        <i class="fa-solid fa-paper-plane text-xs"></i>
+                    </button>
                 </div>
 
-                <button type="submit" id="submitBtn" class="w-full axion-gradient hover:opacity-90 text-white font-bold text-xs py-3 rounded-xl mt-2 transition shadow-lg shadow-orange-950/30">
-                    Radara Al 🚀
-                </button>
-            </form>
-        </div>
-    </section>
-
-    <!-- TAB 3: AYARLAR -->
-    <section id="tab-settings" class="p-4 max-w-md mx-auto hidden space-y-4">
-        <div class="card-custom p-5 rounded-2xl space-y-4">
-            <h2 class="text-base font-bold text-gray-100 border-b border-gray-800 pb-2">Axion Sistem Ayarları</h2>
-            
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-xs font-bold text-gray-200">Arka Plan Taraması</p>
-                    <p class="text-[10px] text-gray-400">7/24 Fiyat analizi motoru</p>
+                <div class="flex gap-1.5 mt-2 flex-wrap">
+                    <button onclick="quickAiPrompt('Fiyat trendlerimi analiz et')" class="btn-interact text-[9px] bg-purple-500/10 text-purple-300 border border-purple-500/20 px-2 py-1 rounded-lg">📊 Trend Analizi</button>
+                    <button onclick="quickAiPrompt('Ne zaman alım yapmalıyım?')" class="btn-interact text-[9px] bg-purple-500/10 text-purple-300 border border-purple-500/20 px-2 py-1 rounded-lg">⏰ Alım Zamanı</button>
+                    <button onclick="quickAiPrompt('Tasarruf önerileri ver')" class="btn-interact text-[9px] bg-purple-500/10 text-purple-300 border border-purple-500/20 px-2 py-1 rounded-lg">💰 Tasarruf</button>
                 </div>
-                <span class="text-xs bg-emerald-950 text-emerald-400 border border-emerald-800 px-2 py-0.5 rounded-md font-bold">Aktif</span>
             </div>
+        </section>
 
-            <div class="flex items-center justify-between pt-2 border-t border-gray-800">
-                <div>
-                    <p class="text-xs font-bold text-gray-200">Render Cloud Node</p>
-                    <p class="text-[10px] text-gray-400">Backend Sunucu Bağlantısı</p>
+        <!-- Bottom Nav -->
+        <nav class="fixed bottom-0 left-0 right-0 glass-nav py-3 px-6 flex justify-around items-center z-50 max-w-md mx-auto">
+            <button onclick="switchTab('home')" id="nav-home" class="btn-interact flex flex-col items-center text-orange-500">
+                <i class="fa-solid fa-chart-line text-base mb-1"></i>
+                <span class="text-[10px] font-bold">Radar</span>
+            </button>
+            <button onclick="switchTab('ai')" id="nav-ai" class="btn-interact flex flex-col items-center text-gray-400">
+                <i class="fa-solid fa-brain text-base mb-1"></i>
+                <span class="text-[10px] font-bold">AI</span>
+            </button>
+            <button onclick="switchTab('add')" id="nav-add" class="btn-interact flex flex-col items-center text-gray-400">
+                <div class="axion-gradient text-white p-3 rounded-full -mt-6 border-4 border-[#060911] shadow-lg axion-glow">
+                    <i class="fa-solid fa-plus text-sm"></i>
                 </div>
-                <span class="text-xs bg-blue-950 text-blue-400 border border-blue-800 px-2 py-0.5 rounded-md font-bold">Online</span>
-            </div>
-        </div>
-    </section>
-
-    <!-- ALT GEZİNME BAR (BOTTOM NAV) -->
-    <nav class="fixed bottom-0 left-0 right-0 bg-[#111827] border-t border-gray-800 py-3 px-8 flex justify-around items-center z-50 max-w-md mx-auto">
-        <button onclick="switchTab('home')" id="nav-home" class="nav-active flex flex-col items-center text-xs">
-            <i class="fa-solid fa-chart-line text-base mb-1"></i>
-            <span>Radar</span>
-        </button>
-        <button onclick="switchTab('add')" id="nav-add" class="flex flex-col items-center text-gray-400 text-xs">
-            <div class="axion-gradient text-white p-2.5 rounded-full -mt-6 border-4 border-[#090d16] shadow-md shadow-orange-950/50">
-                <i class="fa-solid fa-plus text-sm"></i>
-            </div>
-            <span>Ekle</span>
-        </button>
-        <button onclick="switchTab('settings')" id="nav-settings" class="flex flex-col items-center text-gray-400 text-xs">
-            <i class="fa-solid fa-sliders text-base mb-1"></i>
-            <span>Sistem</span>
-        </button>
-    </nav>
+                <span class="text-[10px] font-bold">Ekle</span>
+            </button>
+        </nav>
+    </div>
 
     <script>
-        const API_URL = "https://fiyat-takip-backend.onrender.com/api";
+    document.addEventListener('DOMContentLoaded', () => {
+        const SUPABASE_URL = "https://rgrborzdgbslwmixszyl.supabase.co";
+        const SUPABASE_ANON_KEY = "sb_publishable_UqT3G_hrhUFarwUEZ6UBxA_BWZpfWHw";
+        
+        const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+        });
 
-        function switchTab(tab) {
-            ['home', 'add', 'settings'].forEach(t => {
-                document.getElementById(`tab-${t}`).classList.add('hidden');
-                document.getElementById(`nav-${t}`).classList.remove('nav-active', 'text-orange-500');
-                document.getElementById(`nav-${t}`).classList.add('text-gray-400');
-            });
+        let currentUser = null;
+        let currentAuthMode = 'login';
+        let resendTimer = null;
+        let lastRegisteredEmail = "";
+        let allProducts = [];
+        let currentFilter = 'all';
+        let aiChatHistory = [];
+        let authInitialized = false;
 
-            document.getElementById(`tab-${tab}`).classList.remove('hidden');
-            const activeNav = document.getElementById(`nav-${tab}`);
-            activeNav.classList.add('nav-active', 'text-orange-500');
-            activeNav.classList.remove('text-gray-400');
+        // DOM
+        const $ = id => document.getElementById(id);
+        const tabLoginBtn = $('tabLoginBtn');
+        const tabRegisterBtn = $('tabRegisterBtn');
+        const confirmGroup = $('confirmPasswordGroup');
+        const confirmInput = $('authConfirmPassword');
+        const mainAuthBtn = $('mainAuthBtn');
+        const authForm = $('authForm');
+        const verifyNotice = $('verifyNotice');
+        const authFormContainer = $('authFormContainer');
 
-            if(tab === 'home') loadProducts();
-        }
-
-        async function loadProducts() {
-            try {
-                const res = await fetch(`${API_URL}/products`);
-                const data = await res.json();
-                const container = document.getElementById('productList');
-                document.getElementById('productCount').innerText = data.length;
-                container.innerHTML = '';
-
-                if(data.length === 0) {
-                    container.innerHTML = `
-                        <div class="text-center py-12 card-custom rounded-2xl">
-                            <i class="fa-solid fa-crosshairs text-3xl text-gray-600 mb-2"></i>
-                            <p class="text-xs text-gray-400">Axion radarında henüz ürün yok.</p>
-                            <button onclick="switchTab('add')" class="mt-3 text-xs axion-gradient text-white px-3.5 py-2 rounded-xl font-bold">İlk Ürünü Ekleyin</button>
-                        </div>`;
-                    return;
-                }
-
-                data.forEach((item, index) => {
-                    const isTarget = item.current_price <= item.target_price;
-                    const chartId = `chart-${index}`;
-
-                    container.innerHTML += `
-                        <div class="card-custom rounded-2xl p-4 relative ${isTarget ? 'border-emerald-500/50 shadow-lg shadow-emerald-950/20' : ''}">
-                            ${isTarget ? '<span class="absolute top-0 right-0 bg-emerald-500 text-black font-black text-[9px] px-2.5 py-0.5 rounded-bl-lg">🎯 HEDEF FİYAT KAZANILDI</span>' : ''}
-                            
-                            <div class="flex justify-between items-start mb-1">
-                                <span class="text-[10px] bg-gray-800 text-orange-400 font-bold px-2 py-0.5 rounded-md">${item.store}</span>
-                            </div>
-                            <h3 class="font-bold text-sm text-gray-100 mb-2">${item.name}</h3>
-                            
-                            <!-- Grafik -->
-                            <div class="my-2 h-20 w-full">
-                                <canvas id="${chartId}"></canvas>
-                            </div>
-
-                            <div class="flex justify-between items-end pt-2 border-t border-gray-800">
-                                <div>
-                                    <p class="text-[10px] text-gray-400">Hedef: ${item.target_price.toLocaleString('tr-TR')} ₺</p>
-                                    <p class="text-lg font-extrabold text-emerald-400">${item.current_price.toLocaleString('tr-TR')} ₺</p>
-                                </div>
-                                <a href="${item.url}" target="_blank" class="axion-gradient hover:opacity-90 text-white text-xs px-3.5 py-2 rounded-xl font-bold transition flex items-center gap-1">
-                                    <span>İncele</span> <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
-                                </a>
-                            </div>
-                        </div>
-                    `;
-
-                    setTimeout(() => renderChart(chartId, item.initial_price || item.current_price, item.current_price), 100);
-                });
-            } catch (err) {
-                console.error("Axion veri hatası:", err);
-            }
-        }
-
-        function renderChart(id, startPrice, currentPrice) {
-            const ctx = document.getElementById(id);
-            if(!ctx) return;
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Başlangıç', 'Güncel'],
-                    datasets: [{
-                        data: [startPrice, currentPrice],
-                        borderColor: '#10b981',
-                        borderWidth: 2,
-                        stepped: true,
-                        fill: false,
-                        pointBackgroundColor: '#10b981'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { x: { display: false }, y: { display: false } }
-                }
-            });
-        }
-
-        async function addNewProduct(e) {
-            e.preventDefault();
-            const btn = document.getElementById('submitBtn');
-            btn.innerText = "Fiyat Çekiliyor...";
-            btn.disabled = true;
-
-            const nameInput = document.getElementById('pName').value;
-            const targetPriceInput = parseFloat(document.getElementById('pTarget').value);
-            const urlInput = document.getElementById('pUrl').value;
-            const storeInput = document.getElementById('pStore').value;
-
-            const newProduct = {
-                name: nameInput,
-                store: storeInput,
-                target_price: targetPriceInput,
-                url: urlInput,
-                initial_price: targetPriceInput
+        // ========== TOAST ==========
+        window.showToast = function(message, type = 'info', duration = 3500) {
+            const container = $('toastContainer');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-900/95 border-emerald-500 text-emerald-100',
+                error: 'bg-red-900/95 border-red-500 text-red-100',
+                info: 'bg-gray-900/95 border-orange-500 text-orange-100',
+                ai: 'bg-purple-900/95 border-purple-500 text-purple-100'
             };
+            const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', info: 'fa-bell', ai: 'fa-brain' };
+            toast.className = `glass-card ${colors[type] || colors.info} p-3.5 rounded-2xl border text-xs font-bold flex items-center gap-3 shadow-2xl animate-toast`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type]}"></i><span class="flex-1">${message}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'all 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        };
 
+        // ========== AUTH UI ==========
+        window.resetAuthView = function() {
+            verifyNotice.classList.add('hidden');
+            authFormContainer.classList.remove('hidden');
+            setAuthMode('login');
+        };
+
+        window.resendVerification = async function() {
+            if (!lastRegisteredEmail) {
+                showToast("Önce kayıt olmanız gerekiyor", "error");
+                return;
+            }
+            const resendBtn = $('resendBtn');
+            const resendBtnText = $('resendBtnText');
+            resendBtn.disabled = true;
             try {
-                const response = await fetch(`${API_URL}/add-product`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newProduct)
+                const { error } = await db.auth.resend({
+                    type: 'signup',
+                    email: lastRegisteredEmail,
+                    options: { emailRedirectTo: window.location.origin + window.location.pathname }
                 });
-
-                if(response.ok) {
-                    e.target.reset();
-                    switchTab('home');
+                if (error) {
+                    showToast("Gönderilemedi: " + error.message, "error");
+                    resendBtn.disabled = false;
                 } else {
-                    alert("Ürün eklenirken sunucu hatası oluştu.");
+                    showToast("Doğrulama bağlantısı gönderildi!", "success");
+                    startResendCountdown(60);
                 }
             } catch (err) {
-                console.error(err);
-                alert("Bağlantı hatası.");
-            } finally {
-                btn.innerText = "Radara Al 🚀";
-                btn.disabled = false;
+                showToast("Hata: " + err.message, "error");
+                resendBtn.disabled = false;
+            }
+        };
+
+        function startResendCountdown(seconds) {
+            const resendBtn = $('resendBtn');
+            const resendBtnText = $('resendBtnText');
+            let count = seconds;
+            resendBtn.disabled = true;
+            resendBtnText.innerText = `Tekrar Gönder (${count}s)`;
+            clearInterval(resendTimer);
+            resendTimer = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    resendBtnText.innerText = `Tekrar Gönder (${count}s)`;
+                } else {
+                    clearInterval(resendTimer);
+                    resendBtnText.innerText = "Tekrar Gönder";
+                    resendBtn.disabled = false;
+                }
+            }, 1000);
+        }
+
+        tabLoginBtn.addEventListener('click', () => setAuthMode('login'));
+        tabRegisterBtn.addEventListener('click', () => setAuthMode('register'));
+
+        function setAuthMode(mode) {
+            currentAuthMode = mode;
+            const activeClass = "btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md";
+            const inactiveClass = "btn-interact flex-1 py-2.5 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white";
+            if (mode === 'login') {
+                tabLoginBtn.className = activeClass;
+                tabRegisterBtn.className = inactiveClass;
+                confirmGroup.classList.add('hidden');
+                confirmInput.removeAttribute('required');
+                mainAuthBtn.innerHTML = '<span>Giriş Yap</span>';
+            } else {
+                tabRegisterBtn.className = activeClass;
+                tabLoginBtn.className = inactiveClass;
+                confirmGroup.classList.remove('hidden');
+                confirmInput.setAttribute('required', 'true');
+                mainAuthBtn.innerHTML = '<span>Hesap Oluştur</span>';
             }
         }
 
-        async function triggerPriceCheck() {
-            const btn = document.getElementById('refreshBtn');
-            btn.querySelector('span').innerText = "Taranıyor...";
-            btn.disabled = true;
+        // ========== AUTH STATE ==========
+        async function initAuth() {
+            const { data: { session } } = await db.auth.getSession();
+            if (session?.user) await handleAuthSuccess(session.user);
+            else showAuthModal();
+            authInitialized = true;
+        }
+
+        // Doğrulama linkine tıklandığında otomatik giriş
+        db.auth.onAuthStateChange(async (event, session) => {
+            if (!authInitialized) return;
+            if (event === 'SIGNED_IN' && session?.user) {
+                await handleAuthSuccess(session.user);
+            } else if (event === 'SIGNED_OUT') {
+                currentUser = null;
+                showAuthModal();
+            }
+        });
+
+        async function handleAuthSuccess(user) {
+            currentUser = user;
+            $('authModal').classList.add('hidden');
+            $('appContent').classList.remove('hidden');
+            $('userEmailDisplay').innerText = user.email;
+            await loadProducts();
+        }
+
+        function showAuthModal() {
+            $('authModal').classList.remove('hidden');
+            $('appContent').classList.add('hidden');
+        }
+
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = $('authEmail').value.trim();
+            const password = $('authPassword').value;
+            mainAuthBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> <span>İşlem Yapılıyor...</span>';
+            mainAuthBtn.disabled = true;
 
             try {
-                await fetch(`${API_URL}/check-prices`, { method: 'POST' });
-                await loadProducts();
-            } catch(e) {
-                console.error(e);
-            }
-
-            btn.querySelector('span').innerText = "Tara";
-            btn.disabled = false;
-        }
-
-        loadProducts();
-    </script>
-</body>
-</html>
+                if (currentAuthMode === 'register') {
+                    if (password !== confirmInput.value) {
+                        showToast("Şifreler eşleşmiyor!", "error");
+                        return;
+                    }
+                    const { data, error } = await db.auth.signUp({
+                        email, password,
+                        options: { emailRedirectTo: window.location.origin + window.location.pathname }
+                    });
+                    if (
