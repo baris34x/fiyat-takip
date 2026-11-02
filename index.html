@@ -60,16 +60,16 @@
         </div>
     </main>
 
-    <!-- TAB 2: ÜRÜN EKLE -->
+    <!-- TAB 2: ÜRÜN EKLE (İstediğin Gibi Adı Sen Yazarsın) -->
     <section id="tab-add" class="p-4 max-w-md mx-auto hidden space-y-4">
         <div class="card-custom p-5 rounded-2xl">
             <h2 class="text-base font-bold text-gray-100 mb-1">Axion Radarına Ekle</h2>
-            <p class="text-xs text-gray-400 mb-4">Takip etmek istediğin ürünün adresini yapıştır.</p>
+            <p class="text-xs text-gray-400 mb-4">Ürün adını sen gir, linki yapıştır, fiyatı sistem otomatik çözsün.</p>
             
             <form onsubmit="addNewProduct(event)" class="space-y-3">
                 <div>
-                    <label class="text-xs text-gray-400 block mb-1">Ürün Adı</label>
-                    <input type="text" id="pName" placeholder="Örn: DualSense PS5 Kolu" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
+                    <label class="text-xs text-gray-400 block mb-1">Ürün Adı (Senin Girişin)</label>
+                    <input type="text" id="pName" placeholder="Örn: iPhone 15 128GB" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
                 </div>
                 
                 <div class="grid grid-cols-2 gap-2">
@@ -242,27 +242,42 @@
         async function addNewProduct(e) {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
-            btn.innerText = "Ekleniyor...";
+            btn.innerText = "Fiyat Çekiliyor...";
             btn.disabled = true;
 
+            const nameInput = document.getElementById('pName').value;
+            const targetPriceInput = parseFloat(document.getElementById('pTarget').value);
+            const urlInput = document.getElementById('pUrl').value;
+            const storeInput = document.getElementById('pStore').value;
+
             const newProduct = {
-                name: document.getElementById('pName').value,
-                store: document.getElementById('pStore').value,
-                target_price: parseFloat(document.getElementById('pTarget').value),
-                url: document.getElementById('pUrl').value,
-                initial_price: parseFloat(document.getElementById('pTarget').value)
+                name: nameInput,
+                store: storeInput,
+                target_price: targetPriceInput,
+                url: urlInput,
+                initial_price: targetPriceInput
             };
 
-            await fetch(`${API_URL}/add-product`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newProduct)
-            });
+            try {
+                const response = await fetch(`${API_URL}/add-product`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newProduct)
+                });
 
-            e.target.reset();
-            btn.innerText = "Radara Al 🚀";
-            btn.disabled = false;
-            switchTab('home');
+                if(response.ok) {
+                    e.target.reset();
+                    switchTab('home');
+                } else {
+                    alert("Ürün eklenirken sunucu hatası oluştu.");
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Bağlantı hatası.");
+            } finally {
+                btn.innerText = "Radara Al 🚀";
+                btn.disabled = false;
+            }
         }
 
         async function triggerPriceCheck() {
@@ -270,8 +285,12 @@
             btn.querySelector('span').innerText = "Taranıyor...";
             btn.disabled = true;
 
-            await fetch(`${API_URL}/check-prices`, { method: 'POST' });
-            await loadProducts();
+            try {
+                await fetch(`${API_URL}/check-prices`, { method: 'POST' });
+                await loadProducts();
+            } catch(e) {
+                console.error(e);
+            }
 
             btn.querySelector('span').innerText = "Tara";
             btn.disabled = false;
