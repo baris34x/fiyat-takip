@@ -55,19 +55,19 @@
                 <p class="text-xs text-gray-400 mt-1" id="authSubtitle">Gelişmiş Fiyat Takip Platformu</p>
             </div>
 
-            <!-- TAB SWITCHER (GİRİŞ / KAYIT SEKMELERİ) -->
+            <!-- TAB SWITCHER (SEKMELER) -->
             <div class="flex p-1 bg-[#090d16] border border-gray-800 rounded-2xl mb-5">
-                <button type="button" id="tabLoginBtn" onclick="setAuthMode('login')" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md">
+                <button type="button" id="tabLoginBtn" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md">
                     Giriş Yap
                 </button>
-                <button type="button" id="tabRegisterBtn" onclick="setAuthMode('register')" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white">
+                <button type="button" id="tabRegisterBtn" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white">
                     Kayıt Ol
                 </button>
             </div>
 
             <div id="authAlert" class="hidden mb-4 p-3 rounded-xl text-xs font-bold text-center"></div>
 
-            <form onsubmit="handleAuth(event)" class="space-y-3">
+            <form id="authForm" class="space-y-3">
                 <div>
                     <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">E-posta</label>
                     <input type="email" id="authEmail" placeholder="ornek@mail.com" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 transition">
@@ -77,8 +77,8 @@
                     <input type="password" id="authPassword" placeholder="••••••••" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                 </div>
 
-                <!-- ŞİFRE TEKRAR ALANI (SADECE KAYITTA GÖRÜNÜR) -->
-                <div id="confirmPasswordGroup" class="hidden animate-slide-up">
+                <!-- ŞİFRE TEKRAR ALANI -->
+                <div id="confirmPasswordGroup" class="hidden">
                     <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Şifre Tekrarı</label>
                     <input type="password" id="authConfirmPassword" placeholder="••••••••" class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                 </div>
@@ -142,7 +142,7 @@
                     <i class="fa-solid fa-bullseye text-orange-500"></i> Radara Ürün Ekle
                 </h2>
                 
-                <form onsubmit="addNewProduct(event)" class="space-y-3 mt-4">
+                <form id="addProductForm" class="space-y-3 mt-4">
                     <div>
                         <label class="text-[10px] font-bold text-gray-400 uppercase block mb-1">Ürün Adı</label>
                         <input type="text" id="pName" placeholder="Örn: Sony DualSense PS5" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-orange-500">
@@ -176,7 +176,7 @@
         </section>
 
         <nav class="fixed bottom-0 left-0 right-0 glass-nav py-3 px-8 flex justify-around items-center z-50 max-w-md mx-auto">
-            <button onclick="switchTab('home')" id="nav-home" class="nav-active flex flex-col items-center text-xs">
+            <button onclick="switchTab('home')" id="nav-home" class="nav-active flex flex-col items-center text-xs text-orange-500">
                 <i class="fa-solid fa-chart-line text-base mb-1"></i>
                 <span class="text-[10px] font-bold">Radar</span>
             </button>
@@ -190,182 +190,201 @@
     </div>
 
     <script>
-        const SUPABASE_URL = "https://rgrborzdgbslwmixszyl.supabase.co";
-        const SUPABASE_ANON_KEY = "sb_publishable_UqT3G_hrhUFarwUEZ6UBxA_BWZpfWHw";
-        
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        let currentUser = null;
-        let currentAuthMode = 'login';
+        document.addEventListener('DOMContentLoaded', () => {
+            const SUPABASE_URL = "https://rgrborzdgbslwmixszyl.supabase.co";
+            const SUPABASE_ANON_KEY = "sb_publishable_UqT3G_hrhUFarwUEZ6UBxA_BWZpfWHw";
+            
+            // Supabase istemcisi
+            const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            let currentUser = null;
+            let currentAuthMode = 'login';
 
-        async function checkAuth() {
-            const { data: { user } } = await supabase.auth.getUser();
-            if(user) {
-                currentUser = user;
-                document.getElementById('authModal').classList.add('hidden');
-                document.getElementById('appContent').classList.remove('hidden');
-                document.getElementById('userEmailDisplay').innerText = user.email;
-                loadProducts();
-            } else {
-                document.getElementById('authModal').classList.remove('hidden');
-                document.getElementById('appContent').classList.add('hidden');
-            }
-        }
-
-        function setAuthMode(mode) {
-            currentAuthMode = mode;
-            const loginBtn = document.getElementById('tabLoginBtn');
-            const regBtn = document.getElementById('tabRegisterBtn');
+            const tabLoginBtn = document.getElementById('tabLoginBtn');
+            const tabRegisterBtn = document.getElementById('tabRegisterBtn');
             const confirmGroup = document.getElementById('confirmPasswordGroup');
             const confirmInput = document.getElementById('authConfirmPassword');
-            const mainBtn = document.getElementById('mainAuthBtn');
-            const alertBox = document.getElementById('authAlert');
+            const mainAuthBtn = document.getElementById('mainAuthBtn');
+            const authAlert = document.getElementById('authAlert');
+            const authForm = document.getElementById('authForm');
 
-            alertBox.classList.add('hidden');
+            // Sekme Değişimi Eventleri
+            tabLoginBtn.addEventListener('click', () => setAuthMode('login'));
+            tabRegisterBtn.addEventListener('click', () => setAuthMode('register'));
 
-            if (mode === 'login') {
-                loginBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md";
-                regBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white";
-                confirmGroup.classList.add('hidden');
-                confirmInput.removeAttribute('required');
-                mainBtn.innerText = "Giriş Yap";
-            } else {
-                regBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md";
-                loginBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white";
-                confirmGroup.classList.remove('hidden');
-                confirmInput.setAttribute('required', 'true');
-                mainBtn.innerText = "Hesap Oluştur";
+            function setAuthMode(mode) {
+                currentAuthMode = mode;
+                authAlert.classList.add('hidden');
+
+                if (mode === 'login') {
+                    tabLoginBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md";
+                    tabRegisterBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white";
+                    confirmGroup.classList.add('hidden');
+                    confirmInput.removeAttribute('required');
+                    mainAuthBtn.innerText = "Giriş Yap";
+                } else {
+                    tabRegisterBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md";
+                    tabLoginBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white";
+                    confirmGroup.classList.remove('hidden');
+                    confirmInput.setAttribute('required', 'true');
+                    mainAuthBtn.innerText = "Hesap Oluştur";
+                }
             }
-        }
 
-        function showAlert(msg, isSuccess = false) {
-            const alertBox = document.getElementById('authAlert');
-            alertBox.classList.remove('hidden', 'bg-red-500/20', 'text-red-400', 'bg-emerald-500/20', 'text-emerald-400');
-            alertBox.classList.add(isSuccess ? 'bg-emerald-500/20' : 'bg-red-500/20', isSuccess ? 'text-emerald-400' : 'text-red-400');
-            alertBox.innerText = msg;
-        }
+            function showAlert(msg, isSuccess = false) {
+                authAlert.classList.remove('hidden', 'bg-red-500/20', 'text-red-400', 'bg-emerald-500/20', 'text-emerald-400');
+                authAlert.classList.add(isSuccess ? 'bg-emerald-500/20' : 'bg-red-500/20', isSuccess ? 'text-emerald-400' : 'text-red-400');
+                authAlert.innerText = msg;
+            }
 
-        async function handleAuth(e) {
-            e.preventDefault();
-            const email = document.getElementById('authEmail').value;
-            const password = document.getElementById('authPassword').value;
+            async function checkAuth() {
+                const { data: { user } } = await db.auth.getUser();
+                if(user) {
+                    currentUser = user;
+                    document.getElementById('authModal').classList.add('hidden');
+                    document.getElementById('appContent').classList.remove('hidden');
+                    document.getElementById('userEmailDisplay').innerText = user.email;
+                    loadProducts();
+                } else {
+                    document.getElementById('authModal').classList.remove('hidden');
+                    document.getElementById('appContent').classList.add('hidden');
+                }
+            }
 
-            if (currentAuthMode === 'register') {
-                const confirmPassword = document.getElementById('authConfirmPassword').value;
-                if (password !== confirmPassword) {
-                    showAlert("Girilen şifreler eşleşmiyor! Lütfen kontrol edin.");
+            // Form Gönderimi (Giriş / Kayıt)
+            authForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('authEmail').value;
+                const password = document.getElementById('authPassword').value;
+
+                mainAuthBtn.innerText = "İşlem Yapılıyor...";
+                mainAuthBtn.disabled = true;
+
+                try {
+                    if (currentAuthMode === 'register') {
+                        const confirmPassword = confirmInput.value;
+                        if (password !== confirmPassword) {
+                            showAlert("Girilen şifreler eşleşmiyor!");
+                            return;
+                        }
+
+                        const { data, error } = await db.auth.signUp({ email, password });
+                        if (error) {
+                            showAlert("Hata: " + error.message);
+                        } else {
+                            showAlert("Kayıt başarılı! Giriş yapabilirsiniz veya doğrulama mailinizi kontrol edin.", true);
+                            setTimeout(() => setAuthMode('login'), 2000);
+                        }
+                    } else {
+                        const { data, error } = await db.auth.signInWithPassword({ email, password });
+                        if (error) {
+                            showAlert("Giriş başarısız: " + error.message);
+                        } else {
+                            checkAuth();
+                        }
+                    }
+                } catch(err) {
+                    showAlert("Bir hata oluştu: " + err.message);
+                } finally {
+                    mainAuthBtn.innerText = currentAuthMode === 'login' ? "Giriş Yap" : "Hesap Oluştur";
+                    mainAuthBtn.disabled = false;
+                }
+            });
+
+            window.logout = async function() {
+                await db.auth.signOut();
+                checkAuth();
+            }
+
+            window.switchTab = function(tab) {
+                ['home', 'add'].forEach(t => {
+                    document.getElementById(`tab-${t}`).classList.add('hidden');
+                    document.getElementById(`nav-${t}`).classList.remove('text-orange-500');
+                    document.getElementById(`nav-${t}`).classList.add('text-gray-400');
+                });
+
+                document.getElementById(`tab-${tab}`).classList.remove('hidden');
+                document.getElementById(`nav-${tab}`).classList.add('text-orange-500');
+                document.getElementById(`nav-${tab}`).classList.remove('text-gray-400');
+
+                if(tab === 'home') loadProducts();
+            }
+
+            async function loadProducts() {
+                try {
+                    const { data, error } = await db
+                        .from('products')
+                        .select('*')
+                        .eq('user_id', currentUser.id)
+                        .order('created_at', { ascending: false });
+
+                    if (error) throw error;
+                    renderProductList(data || []);
+                } catch (err) {
+                    console.error(err);
+                }
+            }
+
+            function renderProductList(products) {
+                const container = document.getElementById('productList');
+                document.getElementById('productCount').innerText = products.length;
+                container.innerHTML = '';
+
+                if (products.length === 0) {
+                    container.innerHTML = `
+                        <div class="text-center py-12 glass-card rounded-3xl">
+                            <i class="fa-solid fa-radar text-3xl text-gray-600 mb-2"></i>
+                            <p class="text-xs text-gray-400">Takip edilen ürün yok.</p>
+                            <button onclick="switchTab('add')" class="mt-3 text-xs axion-gradient text-white px-4 py-2 rounded-xl font-bold">Ürün Ekle</button>
+                        </div>`;
                     return;
                 }
 
-                const { data, error } = await supabase.auth.signUp({ email, password });
-                if (error) {
-                    showAlert(error.message);
-                } else {
-                    showAlert("Kayıt başarılı! E-postana doğrulama bağlantısı gönderildi.", true);
-                }
-            } else {
-                const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-                if (error) {
-                    showAlert("Giriş başarısız: " + error.message);
-                } else {
-                    checkAuth();
-                }
-            }
-        }
-
-        async function logout() {
-            await supabase.auth.signOut();
-            checkAuth();
-        }
-
-        function switchTab(tab) {
-            ['home', 'add'].forEach(t => {
-                document.getElementById(`tab-${t}`).classList.add('hidden');
-                document.getElementById(`nav-${t}`).classList.remove('text-orange-500');
-                document.getElementById(`nav-${t}`).classList.add('text-gray-400');
-            });
-
-            document.getElementById(`tab-${tab}`).classList.remove('hidden');
-            document.getElementById(`nav-${tab}`).classList.add('text-orange-500');
-            document.getElementById(`nav-${tab}`).classList.remove('text-gray-400');
-
-            if(tab === 'home') loadProducts();
-        }
-
-        async function loadProducts() {
-            try {
-                const { data, error } = await supabase
-                    .from('products')
-                    .select('*')
-                    .eq('user_id', currentUser.id)
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-                renderProductList(data || []);
-            } catch (err) {
-                console.error(err);
-            }
-        }
-
-        function renderProductList(products) {
-            const container = document.getElementById('productList');
-            document.getElementById('productCount').innerText = products.length;
-            container.innerHTML = '';
-
-            if (products.length === 0) {
-                container.innerHTML = `
-                    <div class="text-center py-12 glass-card rounded-3xl">
-                        <i class="fa-solid fa-radar text-3xl text-gray-600 mb-2"></i>
-                        <p class="text-xs text-gray-400">Takip edilen ürün yok.</p>
-                        <button onclick="switchTab('add')" class="mt-3 text-xs axion-gradient text-white px-4 py-2 rounded-xl font-bold">Ürün Ekle</button>
-                    </div>`;
-                return;
-            }
-
-            products.forEach((item) => {
-                container.innerHTML += `
-                    <div class="glass-card rounded-3xl p-4 border border-gray-800">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="text-[9px] bg-gray-800 text-orange-400 font-bold px-2 py-0.5 rounded-md uppercase">${item.store}</span>
-                            <button onclick="deleteProduct(${item.id})" class="text-gray-600 hover:text-red-400 text-xs">
-                                <i class="fa-solid fa-trash-can"></i>
-                            </button>
-                        </div>
-                        <h3 class="font-bold text-sm text-gray-100 mb-2">${item.name}</h3>
-                        <div class="flex justify-between items-end pt-2 border-t border-gray-800">
-                            <div>
-                                <p class="text-[10px] text-gray-400">Hedef: ${item.target_price} ₺</p>
-                                <p class="text-base font-black text-emerald-400">${item.current_price} ₺</p>
+                products.forEach((item) => {
+                    container.innerHTML += `
+                        <div class="glass-card rounded-3xl p-4 border border-gray-800">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="text-[9px] bg-gray-800 text-orange-400 font-bold px-2 py-0.5 rounded-md uppercase">${item.store}</span>
+                                <button onclick="deleteProduct(${item.id})" class="text-gray-600 hover:text-red-400 text-xs">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
                             </div>
-                            <a href="${item.url}" target="_blank" class="axion-gradient text-white text-xs px-3.5 py-2 rounded-xl font-bold">Satın Al</a>
-                        </div>
-                    </div>`;
+                            <h3 class="font-bold text-sm text-gray-100 mb-2">${item.name}</h3>
+                            <div class="flex justify-between items-end pt-2 border-t border-gray-800">
+                                <div>
+                                    <p class="text-[10px] text-gray-400">Hedef: ${item.target_price} ₺</p>
+                                    <p class="text-base font-black text-emerald-400">${item.current_price} ₺</p>
+                                </div>
+                                <a href="${item.url}" target="_blank" class="axion-gradient text-white text-xs px-3.5 py-2 rounded-xl font-bold">Satın Al</a>
+                            </div>
+                        </div>`;
+                });
+            }
+
+            window.deleteProduct = async function(id) {
+                if(!confirm("Silmek istediğinize emin misiniz?")) return;
+                await db.from('products').delete().eq('id', id);
+                loadProducts();
+            }
+
+            document.getElementById('addProductForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const newProduct = {
+                    user_id: currentUser.id,
+                    name: document.getElementById('pName').value,
+                    store: document.getElementById('pStore').value,
+                    target_price: parseFloat(document.getElementById('pTarget').value),
+                    current_price: parseFloat(document.getElementById('pTarget').value),
+                    initial_price: parseFloat(document.getElementById('pTarget').value),
+                    url: document.getElementById('pUrl').value
+                };
+
+                await db.from('products').insert([newProduct]);
+                e.target.reset();
+                switchTab('home');
             });
-        }
 
-        async function deleteProduct(id) {
-            if(!confirm("Silmek istediğinize emin misiniz?")) return;
-            await supabase.from('products').delete().eq('id', id);
-            loadProducts();
-        }
-
-        async function addNewProduct(e) {
-            e.preventDefault();
-            const newProduct = {
-                user_id: currentUser.id,
-                name: document.getElementById('pName').value,
-                store: document.getElementById('pStore').value,
-                target_price: parseFloat(document.getElementById('pTarget').value),
-                current_price: parseFloat(document.getElementById('pTarget').value),
-                initial_price: parseFloat(document.getElementById('pTarget').value),
-                url: document.getElementById('pUrl').value
-            };
-
-            await supabase.from('products').insert([newProduct]);
-            e.target.reset();
-            switchTab('home');
-        }
-
-        checkAuth();
+            checkAuth();
+        });
     </script>
 </body>
 </html>
