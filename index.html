@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>İndirim Avcısı & Fiyat Takip</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 text-white font-sans min-h-screen pb-20">
+
+    <!-- Üst Bar -->
+    <div class="p-4 bg-gray-900 border-b border-gray-800 flex justify-between items-center sticky top-0 z-50">
+        <div>
+            <h1 class="text-lg font-bold text-orange-500">🔥 Kara Cuma İndirim Avcısı</h1>
+            <p class="text-[10px] text-gray-400">Trendyol, Amazon, Hepsiburada Takip</p>
+        </div>
+        <button onclick="triggerPriceCheck()" id="refreshBtn" class="bg-orange-600 hover:bg-orange-500 text-white text-xs px-3 py-2 rounded-xl font-bold">
+            🔄 Güncelle
+        </button>
+    </div>
+
+    <!-- Yeni Ürün Ekleme Alanı -->
+    <div class="p-4 max-w-md mx-auto">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-6">
+            <h2 class="text-sm font-bold text-gray-200 mb-3">➕ Takip Edilecek Ürün Ekle</h2>
+            <form onsubmit="addNewProduct(event)" class="space-y-3">
+                <input type="text" id="pName" placeholder="Ürün Adı (Örn: PS5 Slim)" required class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                
+                <div class="grid grid-cols-2 gap-2">
+                    <select id="pStore" class="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                        <option value="Amazon">Amazon</option>
+                        <option value="Trendyol">Trendyol</option>
+                        <option value="Hepsiburada">Hepsiburada</option>
+                        <option value="Teknosa">Teknosa</option>
+                    </select>
+                    <input type="number" id="pTarget" placeholder="Hedef Fiyat (₺)" required class="bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                </div>
+
+                <input type="url" id="pUrl" placeholder="Ürün Linki (https://...)" required class="w-full bg-gray-950 border border-gray-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-orange-500">
+                
+                <button type="submit" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold text-xs py-2.5 rounded-xl">
+                    Takibe Al 🚀
+                </button>
+            </form>
+        </div>
+
+        <!-- Takip Edilen Ürünler Listesi -->
+        <h2 class="text-sm font-bold text-gray-300 mb-3">📦 Takipteki Ürünlerin</h2>
+        <div id="productList" class="space-y-3">
+            <p class="text-xs text-gray-500 text-center py-6">Yükleniyor...</p>
+        </div>
+    </div>
+
+    <script>
+        // Senin Render Sunucu Adresin
+        const API_URL = "https://fiyat-takip-backend.onrender.com/api";
+
+        async function loadProducts() {
+            try {
+                const res = await fetch(`${API_URL}/products`);
+                const data = await res.json();
+                const container = document.getElementById('productList');
+                container.innerHTML = '';
+
+                if(data.length === 0) {
+                    container.innerHTML = '<p class="text-xs text-gray-500 text-center py-6">Henüz takip edilen ürün yok.</p>';
+                    return;
+                }
+
+                data.forEach(item => {
+                    const isTarget = item.current_price <= item.target_price;
+
+                    container.innerHTML += `
+                        <div class="bg-gray-900 border ${isTarget ? 'border-green-500 shadow-lg shadow-green-950' : 'border-gray-800'} rounded-2xl p-4 relative">
+                            ${isTarget ? '<span class="absolute top-0 right-0 bg-green-500 text-black font-black text-[9px] px-2.5 py-0.5 rounded-bl-lg">🎯 HEDEFE DÜŞTÜ</span>' : ''}
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] bg-gray-800 text-orange-400 font-bold px-2 py-0.5 rounded-md">${item.store}</span>
+                            </div>
+                            <h3 class="font-bold text-sm text-gray-100 mb-2">${item.name}</h3>
+                            
+                            <div class="flex justify-between items-end mt-3 pt-2 border-t border-gray-800/60">
+                                <div>
+                                    <p class="text-[10px] text-gray-400">Hedef: ${item.target_price.toLocaleString('tr-TR')} ₺</p>
+                                    <p class="text-xl font-extrabold text-green-400">${item.current_price.toLocaleString('tr-TR')} ₺</p>
+                                </div>
+                                <a href="${item.url}" target="_blank" class="bg-orange-600 text-white text-xs px-3 py-1.5 rounded-xl font-bold">
+                                    Satın Al ↗
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error("Hata:", err);
+            }
+        }
+
+        async function addNewProduct(e) {
+            e.preventDefault();
+            const btn = e.target.querySelector('button');
+            btn.innerText = "Ekleniyor...";
+            btn.disabled = true;
+
+            const newProduct = {
+                name: document.getElementById('pName').value,
+                store: document.getElementById('pStore').value,
+                target_price: document.getElementById('pTarget').value,
+                url: document.getElementById('pUrl').value,
+                initial_price: document.getElementById('pTarget').value
+            };
+
+            await fetch(`${API_URL}/add-product`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newProduct)
+            });
+
+            e.target.reset();
+            btn.innerText = "Takibe Al 🚀";
+            btn.disabled = false;
+            loadProducts();
+        }
+
+        async function triggerPriceCheck() {
+            const btn = document.getElementById('refreshBtn');
+            btn.innerText = "⏳ Tarama Yapılıyor...";
+            btn.disabled = true;
+
+            await fetch(`${API_URL}/check-prices`, { method: 'POST' });
+            await loadProducts();
+
+            btn.innerText = "🔄 Güncelle";
+            btn.disabled = false;
+        }
+
+        loadProducts();
+    </script>
+</body>
+</html>
