@@ -39,12 +39,12 @@
             from { opacity: 0; transform: translateY(15px); }
             to { opacity: 1; transform: translateY(0); }
         }
-        .animate-slide-up { animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     </style>
 </head>
 <body class="min-h-screen pb-24 select-none">
 
-    <!-- LOGIN / REGISTER MODAL -->
+    <!-- AUTH MODAL -->
     <div id="authModal" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
         <div class="glass-card w-full max-w-md p-6 rounded-3xl border border-gray-800 animate-slide-up shadow-2xl">
             <div class="text-center mb-6">
@@ -52,12 +52,22 @@
                     AX
                 </div>
                 <h2 class="text-xl font-black text-white tracking-wide">Axion Intelligence</h2>
-                <p class="text-xs text-gray-400 mt-1" id="authTitle">Hesabınıza Giriş Yapın</p>
+                <p class="text-xs text-gray-400 mt-1" id="authSubtitle">Gelişmiş Fiyat Takip Platformu</p>
+            </div>
+
+            <!-- TAB SWITCHER (GİRİŞ / KAYIT SEKMELERİ) -->
+            <div class="flex p-1 bg-[#090d16] border border-gray-800 rounded-2xl mb-5">
+                <button type="button" id="tabLoginBtn" onclick="setAuthMode('login')" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md">
+                    Giriş Yap
+                </button>
+                <button type="button" id="tabRegisterBtn" onclick="setAuthMode('register')" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white">
+                    Kayıt Ol
+                </button>
             </div>
 
             <div id="authAlert" class="hidden mb-4 p-3 rounded-xl text-xs font-bold text-center"></div>
 
-            <form onsubmit="handleAuth(event)" class="space-y-4">
+            <form onsubmit="handleAuth(event)" class="space-y-3">
                 <div>
                     <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">E-posta</label>
                     <input type="email" id="authEmail" placeholder="ornek@mail.com" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 transition">
@@ -67,14 +77,15 @@
                     <input type="password" id="authPassword" placeholder="••••••••" required class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                 </div>
 
-                <div class="flex flex-col gap-2 pt-2">
-                    <button type="submit" id="mainAuthBtn" class="w-full axion-gradient text-white font-bold text-xs py-3.5 rounded-xl transition shadow-lg shadow-orange-950/40">
-                        Giriş Yap
-                    </button>
-                    <button type="button" onclick="toggleAuthMode()" id="switchAuthBtn" class="w-full bg-gray-800/60 hover:bg-gray-700 text-gray-300 border border-gray-700 font-bold text-xs py-3 rounded-xl transition">
-                        Hesabın yok mu? Kayıt Ol
-                    </button>
+                <!-- ŞİFRE TEKRAR ALANI (SADECE KAYITTA GÖRÜNÜR) -->
+                <div id="confirmPasswordGroup" class="hidden animate-slide-up">
+                    <label class="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Şifre Tekrarı</label>
+                    <input type="password" id="authConfirmPassword" placeholder="••••••••" class="w-full bg-[#090d16] border border-gray-800 rounded-xl px-4 py-3 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                 </div>
+
+                <button type="submit" id="mainAuthBtn" class="w-full axion-gradient text-white font-bold text-xs py-3.5 rounded-xl transition shadow-lg shadow-orange-950/40 mt-2">
+                    Giriş Yap
+                </button>
             </form>
         </div>
     </div>
@@ -184,7 +195,7 @@
         
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let currentUser = null;
-        let isLoginMode = true;
+        let currentAuthMode = 'login';
 
         async function checkAuth() {
             const { data: { user } } = await supabase.auth.getUser();
@@ -200,20 +211,29 @@
             }
         }
 
-        function toggleAuthMode() {
-            isLoginMode = !isLoginMode;
-            const title = document.getElementById('authTitle');
+        function setAuthMode(mode) {
+            currentAuthMode = mode;
+            const loginBtn = document.getElementById('tabLoginBtn');
+            const regBtn = document.getElementById('tabRegisterBtn');
+            const confirmGroup = document.getElementById('confirmPasswordGroup');
+            const confirmInput = document.getElementById('authConfirmPassword');
             const mainBtn = document.getElementById('mainAuthBtn');
-            const switchBtn = document.getElementById('switchAuthBtn');
-            
-            if(isLoginMode) {
-                title.innerText = "Hesabınıza Giriş Yapın";
+            const alertBox = document.getElementById('authAlert');
+
+            alertBox.classList.add('hidden');
+
+            if (mode === 'login') {
+                loginBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md";
+                regBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white";
+                confirmGroup.classList.add('hidden');
+                confirmInput.removeAttribute('required');
                 mainBtn.innerText = "Giriş Yap";
-                switchBtn.innerText = "Hesabın yok mu? Kayıt Ol";
             } else {
-                title.innerText = "Yeni Axion Hesabı Oluştur";
-                mainBtn.innerText = "Kayıt Ol";
-                switchBtn.innerText = "Zaten hesabın var mı? Giriş Yap";
+                regBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 bg-orange-500 text-white shadow-md";
+                loginBtn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition-all duration-200 text-gray-400 hover:text-white";
+                confirmGroup.classList.remove('hidden');
+                confirmInput.setAttribute('required', 'true');
+                mainBtn.innerText = "Hesap Oluştur";
             }
         }
 
@@ -229,16 +249,22 @@
             const email = document.getElementById('authEmail').value;
             const password = document.getElementById('authPassword').value;
 
-            if(!isLoginMode) {
+            if (currentAuthMode === 'register') {
+                const confirmPassword = document.getElementById('authConfirmPassword').value;
+                if (password !== confirmPassword) {
+                    showAlert("Girilen şifreler eşleşmiyor! Lütfen kontrol edin.");
+                    return;
+                }
+
                 const { data, error } = await supabase.auth.signUp({ email, password });
-                if(error) {
+                if (error) {
                     showAlert(error.message);
                 } else {
-                    showAlert("Kayıt başarılı! E-postana doğrulama bağlantısı gönderildi. Lütfen e-postanı kontrol et.", true);
+                    showAlert("Kayıt başarılı! E-postana doğrulama bağlantısı gönderildi.", true);
                 }
             } else {
                 const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-                if(error) {
+                if (error) {
                     showAlert("Giriş başarısız: " + error.message);
                 } else {
                     checkAuth();
@@ -266,7 +292,6 @@
         }
 
         async function loadProducts() {
-            const container = document.getElementById('productList');
             try {
                 const { data, error } = await supabase
                     .from('products')
