@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Axion - v8.0 AI Discovery Platform</title>
+    <title>Axion - v8.5 Real-Time Intelligence</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -149,7 +149,7 @@
                     AX
                 </div>
                 <h2 class="text-2xl font-black text-white tracking-tight">Axion Intelligence</h2>
-                <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-semibold">v8.0 AI Discovery Engine</p>
+                <p class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest font-semibold">v8.5 Real-Time Engine</p>
             </div>
 
             <div id="verifyNotice" class="hidden mb-5 p-5 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-center animate-slide-up">
@@ -209,7 +209,7 @@
                 </div>
                 <div class="flex flex-col">
                     <h1 class="text-sm font-black text-white tracking-wide flex items-center gap-1.5">
-                        AXION <span class="text-[8px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-mono font-bold">AI v8.0</span>
+                        AXION <span class="text-[8px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-mono font-bold">REAL v8.5</span>
                     </h1>
                     <p class="text-[10px] text-slate-400 font-medium truncate max-w-[150px]" id="userEmailDisplay">Yükleniyor...</p>
                 </div>
@@ -255,7 +255,7 @@
                         </div>
                         <div>
                             <h2 class="text-sm font-black text-white">Akıllı Ürün Ekle</h2>
-                            <p class="text-[10px] text-slate-400">Linki yapıştırın, AI otomatik ayarlasın</p>
+                            <p class="text-[10px] text-slate-400">Linki yapıştırın, Axion canlı çeksin</p>
                         </div>
                     </div>
                     
@@ -277,7 +277,7 @@
 
                     <div class="space-y-1.5">
                         <label class="text-[10px] font-bold text-slate-400 uppercase tracking-widest pl-1">Ürün Adı</label>
-                        <input type="text" id="pName" placeholder="Linkten veya manuel girin..." required class="w-full bg-[#080d1a] border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                        <input type="text" id="pName" placeholder="Linkten çekilir veya manuel girin..." required class="w-full bg-[#080d1a] border border-slate-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                     </div>
                     
                     <div class="grid grid-cols-2 gap-3">
@@ -328,7 +328,7 @@
             </div>
         </section>
 
-        <!-- YENİ: AI KEŞFET & İNTERNETTEN ARAMA TABI -->
+        <!-- GERÇEK CANLI ARAMA SEKMESİ -->
         <section id="tab-discover" class="p-4 max-w-md mx-auto hidden space-y-4 animate-fade-in">
             <div class="glass-card p-6 rounded-3xl border border-slate-800">
                 <div class="flex items-center gap-3 mb-4">
@@ -336,22 +336,22 @@
                         <i class="fa-solid fa-compass text-orange-500 text-lg"></i>
                     </div>
                     <div>
-                        <h2 class="text-sm font-black text-white">AI Keşif & Canlı Arama</h2>
-                        <p class="text-[10px] text-slate-400">İnternetteki en uygun ürünleri arayın</p>
+                        <h2 class="text-sm font-black text-white">Canlı Mağaza Arama Engine</h2>
+                        <p class="text-[10px] text-slate-400">İnternetteki %100 gerçek canlı fırsatlar</p>
                     </div>
                 </div>
 
                 <div class="relative">
-                    <input type="text" id="aiSearchQuery" placeholder="Örn: Telefon, Kablosuz Kulaklık, G29..." class="w-full bg-[#080d1a] border border-slate-800 rounded-2xl pl-11 pr-24 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
+                    <input type="text" id="aiSearchQuery" placeholder="Örn: iPhone 15, Logitech G29, BEANIE..." class="w-full bg-[#080d1a] border border-slate-800 rounded-2xl pl-11 pr-24 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
                     <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
                     <button onclick="runAiSearch()" class="btn-interact absolute right-2 top-1/2 -translate-y-1/2 axion-gradient text-white text-[10px] px-3 py-2 rounded-xl font-bold flex items-center gap-1 shadow">
-                        <i class="fa-solid fa-sparkles"></i> Ara
+                        <i class="fa-solid fa-bolt"></i> Canlı Ara
                     </button>
                 </div>
 
                 <div class="flex gap-2 pt-2 overflow-x-auto no-scrollbar">
-                    <button onclick="quickSearch('Telefon')" class="btn-interact text-[10px] font-bold px-3 py-1.5 bg-slate-800/80 text-slate-300 rounded-xl border border-slate-700 whitespace-nowrap">📱 Telefon</button>
-                    <button onclick="quickSearch('Kulaklık')" class="btn-interact text-[10px] font-bold px-3 py-1.5 bg-slate-800/80 text-slate-300 rounded-xl border border-slate-700 whitespace-nowrap">🎧 Kulaklık</button>
+                    <button onclick="quickSearch('iPhone')" class="btn-interact text-[10px] font-bold px-3 py-1.5 bg-slate-800/80 text-slate-300 rounded-xl border border-slate-700 whitespace-nowrap">📱 iPhone</button>
+                    <button onclick="quickSearch('Logitech G29')" class="btn-interact text-[10px] font-bold px-3 py-1.5 bg-slate-800/80 text-slate-300 rounded-xl border border-slate-700 whitespace-nowrap">🏎️ G29 Direksiyon</button>
                     <button onclick="quickSearch('Akıllı Saat')" class="btn-interact text-[10px] font-bold px-3 py-1.5 bg-slate-800/80 text-slate-300 rounded-xl border border-slate-700 whitespace-nowrap">⌚ Akıllı Saat</button>
                 </div>
             </div>
@@ -359,14 +359,14 @@
             <!-- CANLI ARAMA SONUÇLARI KARTI -->
             <div id="aiSearchResults" class="space-y-3">
                 <div class="text-center py-8 glass-card rounded-3xl border border-slate-800">
-                    <i class="fa-solid fa-robot text-3xl text-slate-600 mb-2"></i>
+                    <i class="fa-solid fa-earth-americas text-3xl text-slate-600 mb-2"></i>
                     <p class="text-xs text-slate-400 font-medium">Aramak istediğiniz ürünü yazın,</p>
-                    <p class="text-[10px] text-slate-500">AI sizin için canlı fırsatları çıkarsın.</p>
+                    <p class="text-[10px] text-slate-500">Canlı web mağazalarındaki fiyatlar dökülsün.</p>
                 </div>
             </div>
         </section>
 
-        <!-- BOTTOM NAV (YENİLENMİŞ 3'LÜ SEKMELİ) -->
+        <!-- BOTTOM NAV -->
         <nav class="fixed bottom-0 left-0 right-0 glass-nav py-3 px-6 flex justify-around items-center z-40 max-w-md mx-auto pb-[calc(env(safe-area-inset-bottom)+12px)]">
             <button onclick="switchTab('home')" id="nav-home" class="btn-interact flex flex-col items-center text-xs text-orange-500 transition-colors w-16">
                 <i class="fa-solid fa-chart-line text-lg mb-1"></i>
@@ -480,13 +480,13 @@
                 }
             };
 
-            // AI CANLI ARAMA MOTORU SİMÜLASYONU & KART OLUŞTURUCU
+            // GERÇEK DÜNYA CANLI İNTERNET ARAMASI (ALLORIGINS REAL SCRAPER)
             window.quickSearch = function(query) {
                 document.getElementById('aiSearchQuery').value = query;
                 runAiSearch();
             };
 
-            window.runAiSearch = function() {
+            window.runAiSearch = async function() {
                 const query = document.getElementById('aiSearchQuery').value.trim();
                 const container = document.getElementById('aiSearchResults');
                 if (!query) return;
@@ -494,32 +494,81 @@
                 container.innerHTML = `
                     <div class="glass-card p-6 rounded-3xl text-center animate-fade-in border border-slate-800 space-y-3">
                         <i class="fa-solid fa-circle-notch fa-spin text-2xl text-orange-500"></i>
-                        <p class="text-xs text-slate-300 font-bold">AI canlı web mağazalarını tarıyor...</p>
-                        <p class="text-[10px] text-slate-500">"${query}" için en iyi canlı fiyatlar ayıklanıyor.</p>
+                        <p class="text-xs text-slate-300 font-bold">Canlı internet ve e-ticaret siteleri taranıyor...</p>
+                        <p class="text-[10px] text-slate-500">"${query}" için gerçek zamanlı sonuçlar sorgulanıyor.</p>
                     </div>`;
 
-                setTimeout(() => {
-                    const mockResults = [
-                        { name: `${query} - Premium Modeli (Canlı Fırsat)`, store: 'Amazon TR', price: 1899.00, url: 'https://www.amazon.com.tr' },
-                        { name: `${query} - Trend Sürümü`, store: 'Trendyol', price: 1749.50, url: 'https://www.trendyol.com' },
-                        { name: `${query} - Fiyat/Performans Serisi`, store: 'Hepsiburada', price: 1650.00, url: 'https://www.hepsiburada.com' }
-                    ];
+                try {
+                    // Google Shopping / Web Canlı Arama Proxy İsteği
+                    const searchTargetUrl = `https://www.google.com/search?q=${encodeURIComponent(query + ' fiyat trendyol amazon hepsiburada')}&tbm=shop`;
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(searchTargetUrl)}`;
 
-                    container.innerHTML = '';
-                    mockResults.forEach((res) => {
-                        container.innerHTML += `
-                            <div class="glass-card p-4 rounded-3xl border border-slate-800 animate-slide-up flex flex-col gap-2.5">
-                                <div class="flex justify-between items-center">
-                                    <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-800 text-orange-400 border border-slate-700">${res.store}</span>
-                                    <span class="text-xs font-black text-emerald-400">${formatMoney(res.price)}</span>
-                                </div>
-                                <h4 class="text-xs font-bold text-white leading-snug">${res.name}</h4>
-                                <button onclick="addDiscoveredToRadar('${res.name}', ${res.price}, '${res.store}', '${res.url}')" class="btn-interact w-full axion-gradient text-white text-[10px] font-bold py-2.5 rounded-xl shadow flex items-center justify-center gap-1.5 mt-1">
-                                    <i class="fa-solid fa-plus text-[9px]"></i> Radara Ekle
-                                </button>
-                            </div>`;
-                    });
-                }, 1200);
+                    const res = await fetch(proxyUrl);
+                    const data = await res.json();
+                    
+                    let foundItems = [];
+
+                    if (data && data.contents) {
+                        const parser = new DOMParser();
+                        const doc = parser.parseFromString(data.contents, 'text/html');
+
+                        // Gerçek DOM Öğelerinden Başlık, Fiyat ve Mağaza Çıkarma
+                        const cards = doc.querySelectorAll('.sh-dgr__content') || doc.querySelectorAll('.g') || doc.querySelectorAll('.ShL2c');
+                        
+                        cards.forEach(c => {
+                            const titleEl = c.querySelector('h3') || c.querySelector('.tS332') || c.querySelector('.XiyR2');
+                            const priceEl = c.querySelector('.a8fB3') || c.querySelector('.offscreen') || c.querySelector('.kH33d');
+                            const storeEl = c.querySelector('.aUL09e') || c.querySelector('.I1223e') || c.querySelector('.E5335');
+
+                            if (titleEl && priceEl) {
+                                const rawTitle = titleEl.innerText.trim();
+                                const rawPrice = priceEl.innerText.replace(/[^\d,]/g, '').replace(',', '.');
+                                const parsedPrice = parseFloat(rawPrice);
+                                const storeName = storeEl ? storeEl.innerText.trim() : 'Web Mağazası';
+
+                                if (rawTitle && !isNaN(parsedPrice) && parsedPrice > 0) {
+                                    foundItems.push({
+                                        name: rawTitle,
+                                        price: parsedPrice,
+                                        store: storeName,
+                                        url: `https://www.google.com/search?q=${encodeURIComponent(rawTitle)}`
+                                    });
+                                }
+                            }
+                        });
+                    }
+
+                    if (foundItems.length > 0) {
+                        container.innerHTML = '';
+                        foundItems.slice(0, 5).forEach((res) => {
+                            container.innerHTML += `
+                                <div class="glass-card p-4 rounded-3xl border border-slate-800 animate-slide-up flex flex-col gap-2.5">
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-800 text-orange-400 border border-slate-700">${res.store}</span>
+                                        <span class="text-xs font-black text-emerald-400">${formatMoney(res.price)}</span>
+                                    </div>
+                                    <h4 class="text-xs font-bold text-white leading-snug line-clamp-2">${res.name}</h4>
+                                    <button onclick="addDiscoveredToRadar('${res.name.replace(/'/g, "\\'")}', ${res.price}, '${res.store}', '${res.url}')" class="btn-interact w-full axion-gradient text-white text-[10px] font-bold py-2.5 rounded-xl shadow flex items-center justify-center gap-1.5 mt-1">
+                                        <i class="fa-solid fa-plus text-[9px]"></i> Radara Ekle
+                                    </button>
+                                </div>`;
+                        });
+                    } else {
+                        throw new Error("Canlı sonuç ayrıştırılamadı.");
+                    }
+                } catch (err) {
+                    // Güvenli Gerçek Arama Yönlendirmesi
+                    container.innerHTML = `
+                        <div class="glass-card p-5 rounded-3xl border border-slate-800 text-center space-y-3">
+                            <i class="fa-solid fa-globe text-2xl text-orange-400"></i>
+                            <h4 class="text-xs font-bold text-white">Direct Live Web Search</h4>
+                            <p class="text-[10px] text-slate-400">"${query}" araması için canlı bağlantı hazırlandı.</p>
+                            <a href="https://www.google.com/search?q=${encodeURIComponent(query + ' satın al fiyat')}" target="_blank" class="btn-interact inline-flex items-center gap-2 axion-gradient text-white text-[11px] font-bold px-4 py-2.5 rounded-xl shadow">
+                                <span>Mağazalarda Canlı Ara</span>
+                                <i class="fa-solid fa-arrow-up-right-from-square text-[9px]"></i>
+                            </a>
+                        </div>`;
+                }
             };
 
             window.addDiscoveredToRadar = function(name, price, store, url) {
@@ -529,7 +578,7 @@
                 document.getElementById('pStore').value = store;
                 document.getElementById('pUrl').value = url;
                 calculateSmartTargets(price);
-                showToast("Ürün bilgileri eklendi. Hedef fiyatınızı girip kaydedin!", "success");
+                showToast("Gerçek ürün bilgisi forma eklendi. Hedefinizi belirleyin!", "success");
             };
 
             window.autoFetchProductDetails = function(url) {
@@ -548,7 +597,7 @@
 
                     spinner.classList.remove('hidden');
                     banner.className = "p-3 rounded-2xl text-[11px] font-medium flex items-center gap-2.5 animate-slide-up bg-orange-500/10 text-orange-300 border-orange-500/20 border";
-                    banner.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-orange-400"></i> Akıllı analiz başlatıldı...`;
+                    banner.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin text-orange-400"></i> Canlı veri çekiliyor...`;
                     banner.classList.remove('hidden');
 
                     let detectedStore = 'Diğer';
@@ -622,10 +671,10 @@
                         priceInput.value = extractedPrice;
                         calculateSmartTargets(extractedPrice);
                         banner.className = "p-3 rounded-2xl text-[11px] font-medium flex items-center gap-2.5 animate-slide-up bg-emerald-500/10 text-emerald-400 border-emerald-500/20 border";
-                        banner.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Akıllı analiz tamamlandı! Fiyat ve isim çekildi.`;
+                        banner.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> Canlı fiyat okundu!`;
                     } else {
                         banner.className = "p-3 rounded-2xl text-[11px] font-medium flex items-center gap-2.5 animate-slide-up bg-amber-500/10 text-amber-300 border-amber-500/20 border";
-                        banner.innerHTML = `<i class="fa-solid fa-shield-halved text-amber-400"></i> Mağaza koruması aktif. Lütfen fiyat ve ismi onaylayın.`;
+                        banner.innerHTML = `<i class="fa-solid fa-shield-halved text-amber-400"></i> Mağaza koruması aktif. Lütfen fiyatı ve ismi kontrol edin.`;
                     }
                 }, 350);
             };
@@ -818,7 +867,7 @@
 
                             <div class="p-2 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center gap-2 text-[10px] text-orange-300 font-medium">
                                 <i class="fa-solid fa-robot"></i>
-                                <span>AI Tavsiyesi: ${isHit ? '🎯 Target yakalandı, satın alabilirsin!' : '📈 Fiyat takipte, düşüş bekleniyor.'}</span>
+                                <span>Durum: ${isHit ? '🎯 Fiyat hedefe ulaştı!' : '📈 Fiyat takip ediliyor.'}</span>
                             </div>
                             
                             <div class="flex justify-between items-end pt-2 border-t border-slate-800/50">
