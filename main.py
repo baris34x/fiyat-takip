@@ -26,23 +26,17 @@ class ProductCreate(BaseModel):
 
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
     'Accept-Language': 'tr-TR,tr;q=0.9',
 }
 
 def resolve_url(url: str) -> str:
-    """amzn.eu, ty.gl gibi yönlendirme linklerini çözer."""
     try:
         session = requests.Session()
         session.headers.update(HEADERS)
-        res = session.head(url, allow_redirects=True, timeout=4)
+        res = session.head(url, allow_redirects=True, timeout=3)
         return res.url
     except Exception:
-        try:
-            res = requests.get(url, headers=HEADERS, allow_redirects=True, timeout=4)
-            return res.url
-        except Exception:
-            return url
+        return url
 
 def fetch_real_price(url: str):
     try:
@@ -52,7 +46,7 @@ def fetch_real_price(url: str):
 
         html_content = ""
         try:
-            res = session.get(final_url, timeout=4)
+            res = session.get(final_url, timeout=3)
             if res.status_code == 200:
                 html_content = res.text
         except Exception:
@@ -61,10 +55,9 @@ def fetch_real_price(url: str):
         if not html_content:
             try:
                 proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(final_url)}"
-                res = session.get(proxy_url, timeout=4)
+                res = session.get(proxy_url, timeout=3)
                 if res.status_code == 200:
-                    data = res.json()
-                    html_content = data.get('contents', '')
+                    html_content = res.json().get('contents', '')
             except Exception:
                 pass
 
@@ -74,7 +67,7 @@ def fetch_real_price(url: str):
         soup = BeautifulSoup(html_content, 'html.parser')
         extracted_price = None
 
-        # 1. JSON-LD Şema Taraması (En Temiz Fiyat)
+        # 1. JSON-LD Şema Taraması
         for script in soup.find_all('script', type='application/ld+json'):
             try:
                 data_json = json.loads(script.string)
@@ -87,11 +80,7 @@ def fetch_real_price(url: str):
                             if 'price' in offer and offer['price']:
                                 extracted_price = float(str(offer['price']).replace(',', '.'))
                                 break
-                            elif 'lowPrice' in offer and offer['lowPrice']:
-                                extracted_price = float(str(offer['lowPrice']).replace(',', '.'))
-                                break
-                    if extracted_price:
-                        break
+                    if extracted_price: break
             except Exception:
                 continue
 
@@ -109,31 +98,73 @@ def fetch_real_price(url: str):
                     except Exception:
                         pass
 
-        # 3. HTML Selector Taraması (Amazon & Trendyol Özel)
+        # 3. HTML Selector Taraması
         if not extracted_price:
-            selectors = [
-                '.prc-dsc', '.prc-slg', '.product-price-container',
-                '.a-price .a-offscreen', '#priceblock_ourprice', '#priceblock_dealprice',
-                '.a-price-whole', '[data-test-id="price-current-price"]'
-            ]
+            selectors = ['.prc-dsc', '.prc-slg', '.a-price-whole', '[data-test-id="price-current-price"]']
             for sel in selectors:
                 el = soup.select_one(sel)
                 if el:
-                    text = el.get_text().strip()
-                    clean_text = text.replace('.', '').replace(',', '.')
+                    clean_text = el.get_text().strip().replace('.', '').replace(',', '.')
                     match = re.search(r'\d+(\.\d+)?', clean_text)
                     if match:
-                        try:
-                            val = float(match.group(0))
-                            if val > 0:
-                                extracted_price = val
-                                break
-                        except Exception:
-                            pass
+                        val = float(match.group(0))
+                        if val > 0:
+                            extracted_price = val
+                            break
 
         return extracted_price
     except Exception:
         return None
+
+# YENİ EKLENEN: YAPAY ZEKA / CANLI WEB ARAMA MOTORU
+@app.get("/api/search")
+def search_products(q: str):
+    if not q:
+        return []
+    
+    results = []
+    try:
+        search_url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(q + ' satın al fiyat trendyol amazon')}"
+        proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(search_url)}"
+        
+        res = requests.get(proxy_url, headers=HEADERS, timeout=5)
+        if res.status_code == 200:
+            html = res.json().get('contents', '')
+            soup = BeautifulSoup(html, 'html.parser')
+            
+            for r in soup.select('.result'):
+                title_tag = r.select_one('.result__title a')
+                snippet_tag = r.select_one('.result__snippet')
+                
+                if title_tag and title_tag.get_text():
+                    title = title_tag.get_text().strip()
+                    snippet = snippet_tag.get_text() if snippet_tag else ""
+                    link = title_tag.get('href', '#')
+                    
+                    # Fiyat Çıkarma
+                    price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', snippet, re.IGNORECASE)
+                    price_val = None
+                    if price_match:
+                        raw_p = price_match.group(1).replace('.', '').replace(',', '.')
+                        try: price_val = float(raw_p)
+                        except: pass
+                    
+                    store = "E-Ticaret"
+                    if 'trendyol' in title.lower() or 'trendyol' in snippet.lower(): store = "Trendyol"
+                    elif 'amazon' in title.lower() or 'amazon' in snippet.lower(): store = "Amazon TR"
+                    elif 'hepsiburada' in title.lower() or 'hepsiburada' in snippet.lower(): store = "Hepsiburada"
+                    
+                    results.append({
+                        "name": title,
+                        "store": store,
+                        "price": price_val,
+                        "url": link
+                    })
+                    if len(results) >= 6: break
+    except Exception as e:
+        print("Arama Hatası:", e)
+        
+    return results
 
 @app.get("/")
 def read_root():
@@ -146,8 +177,6 @@ def get_products():
 @app.post("/api/add-product")
 def add_product(item: ProductCreate):
     scraped_price = fetch_real_price(item.url)
-    
-    # Gerçek fiyat bulunduysa onu kullanır, bulunamadıysa hedef fiyatı alır
     final_price = scraped_price if (scraped_price and scraped_price > 0) else item.target_price
 
     new_prod = {
