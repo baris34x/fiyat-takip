@@ -25,8 +25,9 @@ class ProductCreate(BaseModel):
     url: str
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-    'Accept-Language': 'tr-TR,tr;q=0.9',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
 }
 
 def resolve_url(url: str) -> str:
@@ -67,7 +68,6 @@ def fetch_real_price(url: str):
         soup = BeautifulSoup(html_content, 'html.parser')
         extracted_price = None
 
-        # 1. JSON-LD Şema Taraması
         for script in soup.find_all('script', type='application/ld+json'):
             try:
                 data_json = json.loads(script.string)
@@ -84,7 +84,6 @@ def fetch_real_price(url: str):
             except Exception:
                 continue
 
-        # 2. Meta Tag Taraması
         if not extracted_price:
             for meta_prop in ['product:price:amount', 'og:price:amount', 'price']:
                 meta_price = soup.find('meta', property=meta_prop) or soup.find('meta', attrs={'name': meta_prop})
@@ -98,7 +97,6 @@ def fetch_real_price(url: str):
                     except Exception:
                         pass
 
-        # 3. HTML Selector Taraması
         if not extracted_price:
             selectors = ['.prc-dsc', '.prc-slg', '.a-price-whole', '[data-test-id="price-current-price"]']
             for sel in selectors:
@@ -116,54 +114,108 @@ def fetch_real_price(url: str):
     except Exception:
         return None
 
-# YENİ EKLENEN: YAPAY ZEKA / CANLI WEB ARAMA MOTORU
+# KESİNTİSİZ ÇOKLU ARAMA MOTORU (FAIL-SAFE SEARCH ENGINE)
 @app.get("/api/search")
 def search_products(q: str):
     if not q:
         return []
     
     results = []
-    try:
-        search_url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(q + ' satın al fiyat trendyol amazon')}"
-        proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(search_url)}"
-        
-        res = requests.get(proxy_url, headers=HEADERS, timeout=5)
-        if res.status_code == 200:
-            html = res.json().get('contents', '')
-            soup = BeautifulSoup(html, 'html.parser')
-            
-            for r in soup.select('.result'):
-                title_tag = r.select_one('.result__title a')
-                snippet_tag = r.select_one('.result__snippet')
+    session = requests.Session()
+    session.headers.update(HEADERS)
+
+    # 1. KANAL: Doğrudan Arama Tüneli
+    search_queries = [
+        f"https://html.duckduckgo.com/html/?q={requests.utils.quote(q + ' fiyat trendyol amazon hepsiburada')}",
+        f"https://html.duckduckgo.com/html/?q={requests.utils.quote(q + ' satın al')}"
+    ]
+
+    for target_search in search_queries:
+        html_data = ""
+        try:
+            # Önce direkt çekmeyi dene
+            res = session.get(target_search, timeout=4)
+            if res.status_code == 200:
+                html_data = res.text
+        except Exception:
+            pass
+
+        # Direkt engellendiyse Proxy üzerinden çek
+        if not html_data:
+            try:
+                proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(target_search)}"
+                res = session.get(proxy_url, timeout=4)
+                if res.status_code == 200:
+                    html_data = res.json().get('contents', '')
+            except Exception:
+                pass
+
+        if html_data:
+            try:
+                soup = BeautifulSoup(html_data, 'html.parser')
+                search_blocks = soup.select('.result') or soup.select('.web-result')
                 
-                if title_tag and title_tag.get_text():
-                    title = title_tag.get_text().strip()
-                    snippet = snippet_tag.get_text() if snippet_tag else ""
-                    link = title_tag.get('href', '#')
+                for r in search_blocks:
+                    title_el = r.select_one('.result__title a') or r.select_one('.result__a')
+                    snippet_el = r.select_one('.result__snippet') or r.select_one('.result__snippet')
                     
-                    # Fiyat Çıkarma
-                    price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', snippet, re.IGNORECASE)
-                    price_val = None
-                    if price_match:
-                        raw_p = price_match.group(1).replace('.', '').replace(',', '.')
-                        try: price_val = float(raw_p)
-                        except: pass
-                    
-                    store = "E-Ticaret"
-                    if 'trendyol' in title.lower() or 'trendyol' in snippet.lower(): store = "Trendyol"
-                    elif 'amazon' in title.lower() or 'amazon' in snippet.lower(): store = "Amazon TR"
-                    elif 'hepsiburada' in title.lower() or 'hepsiburada' in snippet.lower(): store = "Hepsiburada"
-                    
-                    results.append({
-                        "name": title,
-                        "store": store,
-                        "price": price_val,
-                        "url": link
-                    })
-                    if len(results) >= 6: break
-    except Exception as e:
-        print("Arama Hatası:", e)
-        
+                    if title_el and title_el.get_text():
+                        title = title_el.get_text().strip()
+                        snippet = snippet_el.get_text() if snippet_el else ""
+                        link = title_el.get('href', '#')
+
+                        # Link düzeltme
+                        if 'uddg=' in link:
+                            match = re.search(r'uddg=([^&]+)', link)
+                            if match:
+                                link = requests.utils.unquote(match.group(1))
+
+                        # Fiyat Yakalama Regex
+                        price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', snippet, re.IGNORECASE)
+                        if not price_match:
+                            price_match = re.search(r'(\d{1,3}(\.\d{3})*)\s*(TL|₺)', snippet, re.IGNORECASE)
+
+                        price_val = None
+                        if price_match:
+                            raw_p = price_match.group(1).replace('.', '').replace(',', '.')
+                            try:
+                                val = float(raw_p)
+                                if val > 10:
+                                    price_val = val
+                            except:
+                                pass
+
+                        store = "E-Ticaret"
+                        t_lower = (title + " " + snippet + " " + link).lower()
+                        if 'trendyol' in t_lower: store = "Trendyol"
+                        elif 'amazon' in t_lower: store = "Amazon TR"
+                        elif 'hepsiburada' in t_lower: store = "Hepsiburada"
+                        elif 'n11' in t_lower: store = "N11"
+
+                        results.append({
+                            "name": title.replace('...', ''),
+                            "store": store,
+                            "price": price_val,
+                            "url": link
+                        })
+
+                        if len(results) >= 6:
+                            break
+            except Exception as e:
+                print("HTML Parse Hatası:", e)
+
+        if len(results) > 0:
+            break
+
+    # EĞER HİÇBİR ARAMA SONUCU ÇIKMAZSA FALLBACK (YEDEK ARAMA TIKLAMA KARTI)
+    if len(results) == 0:
+        results.append({
+            "name": f"{q} - Google / Trendyol / Amazon Canlı Arama Tüneli",
+            "store": "Canlı Arama",
+            "price": None,
+            "url": f"https://www.google.com/search?q={requests.utils.quote(q + ' fiyat trendyol amazon')}"
+        })
+
     return results
 
 @app.get("/")
