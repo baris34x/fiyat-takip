@@ -119,7 +119,7 @@ def fetch_real_price(url: str):
     except Exception:
         return None
 
-# KESİNTİSİZ & HİBRİT AI ARAMA MOTORU
+# POPÜLERLİK SIRALI VE ÇOKLU E-TİCARET ARAMA MOTORU
 @app.get("/api/search")
 def search_products(q: str):
     if not q:
@@ -129,7 +129,7 @@ def search_products(q: str):
     q_encoded = requests.utils.quote(q_clean)
     results = []
 
-    # Canlı arama tüneli
+    # 1. CANLI ARAMA DENEMESİ
     search_url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(q_clean + ' fiyat trendyol amazon hepsiburada')}"
     
     try:
@@ -161,15 +161,14 @@ def search_products(q: str):
                     t_text = title_el.get_text().strip()
                     s_text = snippet_el.get_text() if snippet_el else ""
 
-                    # Mağaza İsmi Belirleme
                     store_name = "E-Ticaret"
                     link_lower = link.lower()
                     if 'trendyol.com' in link_lower: store_name = "Trendyol"
                     elif 'amazon.com.tr' in link_lower: store_name = "Amazon TR"
                     elif 'hepsiburada.com' in link_lower: store_name = "Hepsiburada"
                     elif 'n11.com' in link_lower: store_name = "N11"
+                    elif 'pazarama.com' in link_lower: store_name = "Pazarama"
 
-                    # Metinden Fiyat Yakalama
                     price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', s_text, re.IGNORECASE)
                     price_val = None
                     if price_match:
@@ -185,33 +184,65 @@ def search_products(q: str):
                         "url": link
                     })
 
-                    if len(results) >= 5:
+                    if len(results) >= 8:
                         break
     except Exception as e:
         print("Arama hatası:", e)
 
-    # EĞER CANLI ARAMA BOŞ DÖNERSE TAMPON SİSTEM (GARANTİ SONUÇLAR)
-    if len(results) == 0:
-        results = [
-            {
-                "name": f"{q_clean} (Trendyol Arama Sayfası)",
-                "store": "Trendyol",
-                "price": None,
-                "url": f"https://www.trendyol.com/sr?q={q_encoded}"
-            },
-            {
-                "name": f"{q_clean} (Amazon TR Arama Sayfası)",
-                "store": "Amazon TR",
-                "price": None,
-                "url": f"https://www.amazon.com.tr/s?k={q_encoded}"
-            },
-            {
-                "name": f"{q_clean} (Hepsiburada Arama Sayfası)",
-                "store": "Hepsiburada",
-                "price": None,
-                "url": f"https://www.hepsiburada.com/ara?q={q_encoded}"
-            }
-        ]
+    # 2. POPÜLERLİK SIRALAMASINA GÖRE GENİŞLETİLMİŞ MAĞAZA LİSTESİ (En Çok Tercih Edilenden Aşağıya)
+    # Eğer canlı arama yetersiz kalırsa bu sıralamayla tamamlar
+    popular_stores = [
+        {
+            "name": f"{q_clean} - Trendyol Arama",
+            "store": "Trendyol",
+            "price": None,
+            "url": f"https://www.trendyol.com/sr?q={q_encoded}"
+        },
+        {
+            "name": f"{q_clean} - Amazon TR Arama",
+            "store": "Amazon TR",
+            "price": None,
+            "url": f"https://www.amazon.com.tr/s?k={q_encoded}"
+        },
+        {
+            "name": f"{q_clean} - Hepsiburada Arama",
+            "store": "Hepsiburada",
+            "price": None,
+            "url": f"https://www.hepsiburada.com/ara?q={q_encoded}"
+        },
+        {
+            "name": f"{q_clean} - N11 Arama",
+            "store": "N11",
+            "price": None,
+            "url": f"https://www.n11.com/arama?q={q_encoded}"
+        },
+        {
+            "name": f"{q_clean} - Pazarama Arama",
+            "store": "Pazarama",
+            "price": None,
+            "url": f"https://www.pazarama.com/arama?q={q_encoded}"
+        },
+        {
+            "name": f"{q_clean} - Çiçeksepeti Arama",
+            "store": "Çiçeksepeti",
+            "price": None,
+            "url": f"https://www.ciceksepeti.com/arama?query={q_encoded}"
+        },
+        {
+            "name": f"{q_clean} - İncehesap / İtopya Arama",
+            "store": "İncehesap",
+            "price": None,
+            "url": f"https://www.incehesap.com/arama/?q={q_encoded}"
+        }
+    ]
+
+    # Canlı sonuçlar azsa veya yoksa sıralı mağaza listesiyle harmanlayıp sunar
+    if len(results) < 3:
+        # Mevcut sonuçların üzerine eksik kalan mağazaları ekler
+        existing_urls = [r['url'] for r in results]
+        for store in popular_stores:
+            if store['url'] not in existing_urls:
+                results.append(store)
 
     return results
 
