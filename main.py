@@ -1,138 +1,123 @@
-import os
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import requests
+from bs4 import BeautifulSoup
 import re
-import asyncio
-from playwright.async_api import async_playwright
-from supabase import create_client
+import json
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+app = FastAPI()
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+# CORS Ayarları (Frontend'in sunucuyla sorunsuz konuşması için)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def clean_price(text: str):
-    if not text:
-        return None
-    cleaned = re.sub(r'[^\d,.]', '', text)
-    if ',' in cleaned and '.' in cleaned:
-        cleaned = cleaned.replace('.', '').replace(',', '.')
-    elif ',' in cleaned:
-        cleaned = cleaned.replace(',', '.')
+# Ürün Deposu (Bellek içi)
+products = []
+
+class ProductCreate(BaseModel):
+    name: str
+    store: str
+    target_price: float
+    url: str
+
+def fetch_real_price(url: str, store: str):
     try:
-        return float(cleaned)
-    except ValueError:
+        # AllOrigins proxy üzerinden bot kalkanını aşıyoruz
+        proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(url)}"
+        res = requests.get(proxy_url, timeout=10)
+        
+        if res.status_code != 200:
+            return None
+            
+        data = res.json()
+        html_content = data.get('contents', '')
+        if not html_content:
+            return None
+
+        soup = BeautifulSoup(html_content, 'html.parser')
+        extracted_price = None
+
+        # 1. JSON-LD Şema Taraması
+        for script in soup.find_all('script', type='application/ld+json'):
+            try:
+                data_json = json.loads(script.string)
+                item = data_json[0] if isinstance(data_json, list) else data_json
+                if 'offers' in item:
+                    offers = item['offers']
+                    offer = offers[0] if isinstance(offers, list) else offers
+                    if 'price' in offer:
+                        extracted_price = float(offer['price'])
+                        break
+                    elif 'lowPrice' in offer:
+                        extracted_price = float(offer['lowPrice'])
+                        break
+            except Exception:
+                continue
+
+        # 2. Meta Tag Taraması
+        if not extracted_price:
+            meta_price = soup.find('meta', property='product:price:amount') or soup.find('meta', property='og:price:amount')
+            if meta_price and meta_price.get('content'):
+                clean_meta = meta_price['content'].replace(',', '.')
+                extracted_price = float(re.sub(r'[^\d.]', '', clean_meta))
+
+        # 3. HTML Sınıf Taraması
+        if not extracted_price:
+            price_text = ""
+            if 'trendyol' in url.lower():
+                el = soup.select_one('.prc-dsc') or soup.select_one('.prc-slg') or soup.select_one('.product-price-container')
+                if el: price_text = el.get_text()
+            elif 'amazon' in url.lower():
+                el = soup.select_one('.a-price-whole') or soup.select_one('#priceblock_ourprice')
+                if el: price_text = el.get_text()
+
+            if price_text:
+                clean_text = re.sub(r'[^\d,.]', '', price_text).replace(',', '.')
+                extracted_price = float(clean_text)
+
+        return extracted_price
+    except Exception:
         return None
 
-async def extract_price_from_page(page, store: str):
-    # 1) JSON-LD
-    try:
-        json_ld = await page.evaluate("""
-            () => {
-                const scripts = document.querySelectorAll('script[type="application/ld+json"]');
-                for (const s of scripts) {
-                    try {
-                        const data = JSON.parse(s.textContent);
-                        const items = Array.isArray(data) ? data : [data];
-                        for (const item of items) {
-                            if (item.offers) {
-                                const offer = Array.isArray(item.offers) ? item.offers[0] : item.offers;
-                                if (offer.price) return parseFloat(offer.price);
-                                if (offer.lowPrice) return parseFloat(offer.lowPrice);
-                            }
-                        }
-                    } catch(e) {}
-                }
-                return null;
-            }
-        """)
-        if json_ld:
-            return json_ld
-    except:
-        pass
+@app.get("/api/products")
+def get_products():
+    return products
 
-    # 2) Siteye özel selector'lar
-    selectors = []
-    store_lower = (store or "").lower()
-    if "trendyol" in store_lower:
-        selectors = ['.prc-dsc', '.prc-slg', '[class*="price"]']
-    elif "amazon" in store_lower:
-        selectors = ['.a-price-whole', '.a-offscreen', '#priceblock_ourprice']
-    elif "hepsiburada" in store_lower:
-        selectors = ['[data-test-id="price-current-price"]', '[class*="price"]']
+@app.post("/api/add-product")
+def add_product(item: ProductCreate):
+    scraped_price = fetch_real_price(item.url, item.store)
+    final_price = scraped_price if scraped_price else item.target_price
 
-    for sel in selectors:
-        try:
-            el = await page.query_selector(sel)
-            if el:
-                text = await el.inner_text()
-                price = clean_price(text)
-                if price and price > 0:
-                    return price
-        except:
-            continue
-    return None
+    new_prod = {
+        "id": str(len(products) + 1),
+        "name": item.name,  # Senin elinle girdiğin ürün adı
+        "store": item.store,
+        "target_price": item.target_price,
+        "current_price": final_price,
+        "initial_price": final_price,
+        "url": item.url
+    }
+    products.append(new_prod)
+    return new_prod
 
-async def scrape_one(browser, product: dict):
-    url = product.get("url")
-    store = product.get("store", "")
-    if not url or not url.startswith("http"):
-        return None
-    page = await browser.new_page(
-        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        locale="tr-TR"
-    )
-    try:
-        await page.goto(url, wait_until="domcontentloaded", timeout=20000)
-        await page.wait_for_timeout(2000)
-        price = await extract_price_from_page(page, store)
-        return price
-    except Exception as e:
-        print(f"  Hata ({product.get('name', '?')[:30]}): {e}")
-        return None
-    finally:
-        await page.close()
+@app.post("/api/check-prices")
+def check_prices():
+    updated = 0
+    for prod in products:
+        new_price = fetch_real_price(prod["url"], prod["store"])
+        if new_price and new_price != prod["current_price"]:
+            prod["current_price"] = new_price
+            updated += 1
+    return {"message": "Tüm fiyatlar güncellendi", "updated": updated}
 
-async def main():
-    print("=== Axion Fiyat Botu Başladı ===")
-    
-    # Supabase'den tüm ürünleri çek
-    result = supabase.table("products").select("*").execute()
-    products = result.data or []
-    print(f"Toplam {len(products)} ürün bulundu.")
-
-    if not products:
-        print("Ürün yok.")
-        return
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=["--disable-blink-features=AutomationControlled"]
-        )
-        updated = 0
-        failed = 0
-
-        for i, product in enumerate(products, 1):
-            name = (product.get("name") or "?")[:40]
-            print(f"[{i}/{len(products)}] {name}...")
-
-            price = await scrape_one(browser, product)
-
-            if price and price > 0:
-                old_price = float(product.get("current_price") or 0)
-                if price != old_price:
-                    supabase.table("products").update(
-                        {"current_price": price}
-                    ).eq("id", product["id"]).execute()
-                    print(f"  ✅ {old_price} → {price} TL")
-                    updated += 1
-                else:
-                    print(f"  ➖ Değişmedi: {price} TL")
-            else:
-                print(f"  ❌ Fiyat çekilemedi")
-                failed += 1
-
-        await browser.close()
-    print(f"=== Bitti: {updated} güncellendi, {failed} başarısız ===")
-
-if __name__ == "__main__":
-    asyncio.run(main())
+@app.delete("/api/products/{prod_id}")
+def delete_product(prod_id: str):
+    global products
+    products = [p for p in products if p["id"] != prod_id]
+    return {"message": "Silindi"}
