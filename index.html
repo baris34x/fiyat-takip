@@ -59,10 +59,8 @@
 </head>
 <body class="min-h-screen pb-28 select-none font-sans antialiased bg-[#030712]">
 
-    <!-- TOAST BİLDİRİM -->
     <div id="toastContainer" class="fixed top-5 left-1/2 -translate-x-1/2 z-[9999] w-11/12 max-w-sm flex flex-col gap-2 pointer-events-none"></div>
 
-    <!-- Üst Bar / Header -->
     <header class="p-4 glass-nav flex justify-between items-center sticky top-0 z-50 shadow-md">
         <div class="flex items-center space-x-3">
             <div class="axion-gradient text-white w-10 h-10 rounded-2xl flex items-center justify-center font-black text-xl tracking-tighter shadow-lg axion-glow">
@@ -106,7 +104,7 @@
         </div>
     </main>
 
-    <!-- TAB 2: AI KEŞFET VE CANLI ARAMA (YENİ SİSTEM) -->
+    <!-- TAB 2: AI KEŞFET -->
     <section id="tab-discover" class="p-4 max-w-md mx-auto hidden space-y-4">
         <div class="glass-card p-6 rounded-3xl border border-gray-800 shadow-2xl">
             <div class="flex items-center gap-3 mb-4">
@@ -115,12 +113,12 @@
                 </div>
                 <div>
                     <h2 class="text-sm font-black text-white">AI Canlı Ürün Arama</h2>
-                    <p class="text-[10px] text-gray-400">Örn: "PS5", "Logitech G29" yaz, mağaza fiyatları dökülsün</p>
+                    <p class="text-[10px] text-gray-400">Ürün veya model adı girin, mağazalar dökülsün</p>
                 </div>
             </div>
 
             <div class="relative">
-                <input type="text" id="aiSearchQuery" placeholder="Ürün adı yazın (Örn: PS5)..." onkeypress="if(event.key==='Enter') runAiSearch()" class="w-full bg-[#080d1a] border border-gray-800 rounded-2xl pl-11 pr-24 py-3.5 text-xs text-white focus:outline-none focus:border-blue-500 transition shadow-inner">
+                <input type="text" id="aiSearchQuery" placeholder="Ürün adı yazın (Örn: Logitech G29)..." onkeypress="if(event.key==='Enter') runAiSearch()" class="w-full bg-[#080d1a] border border-gray-800 rounded-2xl pl-11 pr-24 py-3.5 text-xs text-white focus:outline-none focus:border-blue-500 transition shadow-inner">
                 <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
                 <button onclick="runAiSearch()" id="aiSearchBtn" class="btn-interact absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3.5 py-2 rounded-xl font-bold flex items-center gap-1 shadow">
                     <i class="fa-solid fa-bolt"></i> AI Ara
@@ -159,22 +157,22 @@
             <form onsubmit="addNewProduct(event)" class="space-y-4">
                 <div>
                     <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Ürün Adı (Senin Girişin)</label>
-                    <input type="text" id="pName" placeholder="Örn: iPhone 15 128GB Siyah" required class="w-full bg-[#080d1a] border border-gray-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition shadow-inner">
+                    <input type="text" id="pName" placeholder="Örn: Logitech G29 Direksiyon" required class="w-full bg-[#080d1a] border border-gray-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition shadow-inner">
                 </div>
                 
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Mağaza</label>
                         <select id="pStore" class="w-full bg-[#080d1a] border border-gray-800 rounded-xl px-3 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
-                            <option value="Amazon TR">Amazon TR</option>
                             <option value="Trendyol">Trendyol</option>
+                            <option value="Amazon TR">Amazon TR</option>
                             <option value="Hepsiburada">Hepsiburada</option>
                             <option value="Diğer">Diğer Mağaza</option>
                         </select>
                     </div>
                     <div>
                         <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Hedef Fiyat (₺)</label>
-                        <input type="number" step="any" id="pTarget" placeholder="Örn: 25000" required class="w-full bg-[#080d1a] border border-gray-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition shadow-inner">
+                        <input type="number" step="any" id="pTarget" placeholder="Örn: 12000" required class="w-full bg-[#080d1a] border border-gray-800 rounded-xl px-4 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition shadow-inner">
                     </div>
                 </div>
 
@@ -194,7 +192,7 @@
         </div>
     </section>
 
-    <!-- ALT GEZİNME BAR (BOTTOM NAV) -->
+    <!-- BOTTOM NAV -->
     <nav class="fixed bottom-0 left-0 right-0 glass-nav py-3 px-6 flex justify-around items-center z-50 max-w-md mx-auto">
         <button onclick="switchTab('home')" id="nav-home" class="nav-active btn-interact flex flex-col items-center text-xs">
             <i class="fa-solid fa-chart-line text-lg mb-1"></i>
@@ -217,6 +215,7 @@
         let chartInstances = {};
 
         const formatMoney = (amount) => {
+            if (!amount || amount <= 0) return "Canlı Sayfada";
             return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 }).format(amount);
         };
 
@@ -299,7 +298,7 @@
                     const currPrice = parseFloat(item.current_price) || 0;
                     const tgtPrice = parseFloat(item.target_price) || 0;
                     const initPrice = parseFloat(item.initial_price) || currPrice;
-                    const isTarget = currPrice <= tgtPrice;
+                    const isTarget = currPrice > 0 && currPrice <= tgtPrice;
 
                     if (isTarget) targetHitCount++;
                     const chartId = `chart-${index}`;
@@ -323,7 +322,7 @@
 
                             <div class="flex justify-between items-end pt-2 border-t border-gray-800/80">
                                 <div>
-                                    <p class="text-[9px] text-gray-400 font-bold uppercase">Hedef: ${formatMoney(tgtPrice)}</p>
+                                    <p class="text-[9px] text-gray-400 font-bold uppercase">Hedef: ${tgtPrice > 0 ? formatMoney(tgtPrice) : 'Belirtilmedi'}</p>
                                     <p class="text-base font-black ${isTarget ? 'text-emerald-400' : 'text-white'}">${formatMoney(currPrice)}</p>
                                 </div>
                                 <a href="${item.url}" target="_blank" class="btn-interact ${isTarget ? 'bg-emerald-500 text-black hover:bg-emerald-400' : 'axion-gradient text-white'} text-[10px] px-3.5 py-2 rounded-xl font-bold transition shadow flex items-center gap-1.5">
@@ -353,7 +352,7 @@
                 data: {
                     labels: ['İlk Kayıt', 'Güncel Canlı'],
                     datasets: [{
-                        data: [startPrice, currentPrice],
+                        data: [startPrice || 0, currentPrice || 0],
                         borderColor: '#10b981',
                         backgroundColor: 'rgba(16, 185, 129, 0.1)',
                         borderWidth: 2,
@@ -371,7 +370,6 @@
             });
         }
 
-        // CANLI AI ARAMA FONKSİYONLARI
         function quickSearch(q) {
             document.getElementById('aiSearchQuery').value = q;
             runAiSearch();
@@ -389,8 +387,8 @@
             container.innerHTML = `
                 <div class="glass-card p-6 rounded-3xl text-center border border-gray-800">
                     <i class="fa-solid fa-brain fa-spin text-2xl text-blue-400 mb-2"></i>
-                    <p class="text-xs text-gray-200 font-bold">Render AI web mağazalarını tarıyor...</p>
-                    <p class="text-[10px] text-gray-500">"${query}" için canlı sonuçlar çekiliyor.</p>
+                    <p class="text-xs text-gray-200 font-bold">Render AI mağazaları tarıyor...</p>
+                    <p class="text-[10px] text-gray-500">"${query}" için mağaza listesi hazırlanıyor.</p>
                 </div>`;
 
             try {
@@ -408,7 +406,7 @@
                                 </div>
                                 <h4 class="text-xs font-bold text-white leading-snug line-clamp-2">${item.name}</h4>
                                 <div class="flex gap-2 mt-1">
-                                    <button onclick="directAddFromSearch('${item.name.replace(/'/g, "\\'")}', ${item.price || 1000}, '${item.store}', '${item.url}')" class="btn-interact flex-1 axion-gradient text-white text-[10px] font-bold py-2.5 rounded-xl shadow flex items-center justify-center gap-1">
+                                    <button onclick="directAddFromSearch('${item.name.replace(/'/g, "\\'")}', ${item.price || 0}, '${item.store}', '${item.url}')" class="btn-interact flex-1 axion-gradient text-white text-[10px] font-bold py-2.5 rounded-xl shadow flex items-center justify-center gap-1">
                                         <i class="fa-solid fa-plus text-[9px]"></i> Radara Ekle
                                     </button>
                                     <a href="${item.url}" target="_blank" class="btn-interact bg-gray-800 text-gray-300 p-2.5 rounded-xl text-xs flex items-center justify-center">
@@ -424,8 +422,8 @@
                 container.innerHTML = `
                     <div class="glass-card p-5 rounded-3xl border border-gray-800 text-center space-y-2">
                         <i class="fa-solid fa-wifi text-2xl text-orange-400"></i>
-                        <p class="text-xs font-bold text-white">Canlı Arama Sonucu Bulunamadı</p>
-                        <p class="text-[10px] text-gray-400">Farklı bir kelime arayabilir veya doğrudan link ekleyebilirsiniz.</p>
+                        <p class="text-xs font-bold text-white">Sonuç Bulunamadı</p>
+                        <p class="text-[10px] text-gray-400">Farklı bir kelime yazıp tekrar deneyin.</p>
                     </div>`;
             } finally {
                 btn.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>AI Ara</span>`;
@@ -438,7 +436,7 @@
             const newProduct = {
                 name: name,
                 store: store,
-                target_price: price > 0 ? (price * 0.9) : 1000,
+                target_price: price > 0 ? (price * 0.9) : 0,
                 url: url
             };
 
@@ -464,7 +462,7 @@
             btn.disabled = true;
 
             const nameInput = document.getElementById('pName').value.trim();
-            const targetPriceInput = parseFloat(document.getElementById('pTarget').value);
+            const targetPriceInput = parseFloat(document.getElementById('pTarget').value) || 0;
             const urlInput = document.getElementById('pUrl').value.trim();
             const storeInput = document.getElementById('pStore').value;
 
