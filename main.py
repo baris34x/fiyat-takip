@@ -119,28 +119,29 @@ def fetch_real_price(url: str):
     except Exception:
         return None
 
-# TEKİL ÜRÜN DETAY LİNKİ VE CANLI FİYAT ÇEKİCİ AI ARAMA MOTORU
+# KESİNTİSİZ & HİBRİT AI ARAMA MOTORU
 @app.get("/api/search")
 def search_products(q: str):
     if not q:
         return []
 
     q_clean = q.strip()
+    q_encoded = requests.utils.quote(q_clean)
     results = []
-    
-    # Doğrudan ürün sayfalarını hedefleyen arama sorgusu
-    search_url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(q_clean + ' satın al site:trendyol.com/ OR site:amazon.com.tr/dp/')}"
+
+    # Canlı arama tüneli
+    search_url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(q_clean + ' fiyat trendyol amazon hepsiburada')}"
     
     try:
         session = requests.Session()
         session.headers.update(HEADERS)
         
-        res = session.get(search_url, timeout=4)
+        res = session.get(search_url, timeout=3.5)
         html_data = res.text if res.status_code == 200 else ""
         
         if not html_data:
             proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(search_url)}"
-            p_res = session.get(proxy_url, timeout=4)
+            p_res = session.get(proxy_url, timeout=3.5)
             if p_res.status_code == 200:
                 html_data = p_res.json().get('contents', '')
 
@@ -157,48 +158,60 @@ def search_products(q: str):
                         if match:
                             link = requests.utils.unquote(match.group(1))
 
-                    # Arama sonuç sayfalarını ele, SADECE gerçek ürün detay sayfalarını al
-                    is_valid_product_url = False
+                    t_text = title_el.get_text().strip()
+                    s_text = snippet_el.get_text() if snippet_el else ""
+
+                    # Mağaza İsmi Belirleme
                     store_name = "E-Ticaret"
-                    
-                    if 'trendyol.com/' in link and '-p-' in link:
-                        is_valid_product_url = True
-                        store_name = "Trendyol"
-                    elif 'amazon.com.tr/' in link and ('/dp/' in link or '/gp/product/' in link):
-                        is_valid_product_url = True
-                        store_name = "Amazon TR"
-                    elif 'hepsiburada.com/' in link and '-pm-' in link:
-                        is_valid_product_url = True
-                        store_name = "Hepsiburada"
+                    link_lower = link.lower()
+                    if 'trendyol.com' in link_lower: store_name = "Trendyol"
+                    elif 'amazon.com.tr' in link_lower: store_name = "Amazon TR"
+                    elif 'hepsiburada.com' in link_lower: store_name = "Hepsiburada"
+                    elif 'n11.com' in link_lower: store_name = "N11"
 
-                    if is_valid_product_url:
-                        t_text = title_el.get_text().strip()
-                        s_text = snippet_el.get_text() if snippet_el else ""
+                    # Metinden Fiyat Yakalama
+                    price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', s_text, re.IGNORECASE)
+                    price_val = None
+                    if price_match:
+                        try:
+                            price_val = float(price_match.group(1).replace('.', '').replace(',', '.'))
+                        except Exception:
+                            pass
 
-                        # Açıklamadan fiyatı yakalama
-                        price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', s_text, re.IGNORECASE)
-                        price_val = None
-                        if price_match:
-                            try:
-                                price_val = float(price_match.group(1).replace('.', '').replace(',', '.'))
-                            except:
-                                pass
+                    results.append({
+                        "name": t_text.replace('...', ''),
+                        "store": store_name,
+                        "price": price_val,
+                        "url": link
+                    })
 
-                        # Eğer arama sonucunda fiyat çıkmadıysa backend anında doğrudan ürün sayfasına gidip canlı fiyatı söker!
-                        if not price_val:
-                            price_val = fetch_real_price(link)
-
-                        results.append({
-                            "name": t_text.split(' - ')[0], # Temiz ürün başlığı
-                            "store": store_name,
-                            "price": price_val,
-                            "url": link
-                        })
-
-                        if len(results) >= 5:
-                            break
+                    if len(results) >= 5:
+                        break
     except Exception as e:
         print("Arama hatası:", e)
+
+    # EĞER CANLI ARAMA BOŞ DÖNERSE TAMPON SİSTEM (GARANTİ SONUÇLAR)
+    if len(results) == 0:
+        results = [
+            {
+                "name": f"{q_clean} (Trendyol Arama Sayfası)",
+                "store": "Trendyol",
+                "price": None,
+                "url": f"https://www.trendyol.com/sr?q={q_encoded}"
+            },
+            {
+                "name": f"{q_clean} (Amazon TR Arama Sayfası)",
+                "store": "Amazon TR",
+                "price": None,
+                "url": f"https://www.amazon.com.tr/s?k={q_encoded}"
+            },
+            {
+                "name": f"{q_clean} (Hepsiburada Arama Sayfası)",
+                "store": "Hepsiburada",
+                "price": None,
+                "url": f"https://www.hepsiburada.com/ara?q={q_encoded}"
+            }
+        ]
 
     return results
 
