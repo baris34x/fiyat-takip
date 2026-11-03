@@ -38,6 +38,17 @@ def resolve_url(url: str) -> str:
     except Exception:
         return url
 
+def clean_price_value(val_str: str) -> float:
+    """Metin içindeki fiyatı float sayıya dönüştürür."""
+    try:
+        clean = val_str.strip().replace('.', '').replace(',', '.')
+        match = re.search(r'\d+(\.\d+)?', clean)
+        if match:
+            return float(match.group(0))
+    except Exception:
+        pass
+    return 0.0
+
 def fetch_real_price(url: str):
     try:
         final_url = resolve_url(url)
@@ -67,7 +78,7 @@ def fetch_real_price(url: str):
         soup = BeautifulSoup(html_content, 'html.parser')
         extracted_price = None
 
-        # 1. JSON-LD Şema Taraması (Ürün Detay Sayfaları İçin)
+        # 1. JSON-LD ŞEMA TARAMASI (En Temiz Ve Taksitsiz Veri)
         for script in soup.find_all('script', type='application/ld+json'):
             try:
                 data_json = json.loads(script.string)
@@ -78,70 +89,58 @@ def fetch_real_price(url: str):
                         offer_list = offers if isinstance(offers, list) else [offers]
                         for offer in offer_list:
                             if 'price' in offer and offer['price']:
-                                extracted_price = float(str(offer['price']).replace(',', '.'))
-                                break
+                                p = clean_price_value(str(offer['price']))
+                                if p > 0:
+                                    extracted_price = p
+                                    break
                             elif 'lowPrice' in offer and offer['lowPrice']:
-                                extracted_price = float(str(offer['lowPrice']).replace(',', '.'))
-                                break
+                                p = clean_price_value(str(offer['lowPrice']))
+                                if p > 0:
+                                    extracted_price = p
+                                    break
                     if extracted_price: break
             except Exception:
                 continue
 
-        # 2. Meta Tag Taraması
+        # 2. META TAG TARAMASI
         if not extracted_price:
             for meta_prop in ['product:price:amount', 'og:price:amount', 'price']:
                 meta_price = soup.find('meta', property=meta_prop) or soup.find('meta', attrs={'name': meta_prop})
                 if meta_price and meta_price.get('content'):
-                    try:
-                        clean_meta = meta_price['content'].replace('.', '').replace(',', '.')
-                        val = float(re.sub(r'[^\d.]', '', clean_meta))
-                        if val > 0:
-                            extracted_price = val
-                            break
-                    except Exception:
-                        pass
+                    p = clean_price_value(meta_price['content'])
+                    if p > 0:
+                        extracted_price = p
+                        break
 
-        # 3. HTML Selector Taraması (Detay ve Arama Sayfalarındaki İlk Ürün Fiyatı)
+        # 3. NOKTA ATIŞI MAĞAZA ÖZEL HTML SELECTOR'LARI
         if not extracted_price:
+            forbidden_terms = ['taksit', 'ayda', 'kargo', 'vade', 'bonus', 'kazanç']
+            
             selectors = [
-                '.prc-dsc', '.prc-slg', '.a-price-whole', '[data-test-id="price-current-price"]',
-                '.product-price', '.p-card-chldrn-cntnr .prc-box-sll', '.a-price .a-offscreen',
-                'span[data-price]', '.price'
+                '.prc-dsc', '.prc-slg', '.product-price-container', # Trendyol Ana Fiyat
+                '#priceblock_ourprice', '#priceblock_dealprice', '.a-price-whole', # Amazon Ana Fiyat
+                '[data-test-id="price-current-price"]', '.markup-price' # Hepsiburada / Diğer
             ]
+
             for sel in selectors:
                 elements = soup.select(sel)
                 for el in elements:
-                    clean_text = el.get_text().strip().replace('.', '').replace(',', '.')
-                    match = re.search(r'\d+(\.\d+)?', clean_text)
-                    if match:
-                        try:
-                            val = float(match.group(0))
-                            if val > 50: # Mantıklı e-ticaret taban fiyatı
-                                extracted_price = val
-                                break
-                        except Exception:
-                            pass
+                    text_content = el.parent.get_text().lower() if el.parent else ""
+                    if any(term in text_content for term in forbidden_terms):
+                        continue
+                    
+                    p = clean_price_value(el.get_text())
+                    if p > 0:
+                        extracted_price = p
+                        break
                 if extracted_price:
                     break
-
-        # 4. Sayfadaki Fiyat Metin Regex Taraması (Son Çare)
-        if not extracted_price:
-            price_matches = re.findall(r'(\d{1,3}(?:\.\d{3})*(?:,\d{2})?)\s*(?:TL|₺)', html_content)
-            for raw_p in price_matches:
-                try:
-                    clean_p = raw_p.replace('.', '').replace(',', '.')
-                    val = float(clean_p)
-                    if val > 100:
-                        extracted_price = val
-                        break
-                except Exception:
-                    pass
 
         return extracted_price
     except Exception:
         return None
 
-# POPÜLERLİK SIRALI VE CANLI FİYAT DESTEKLİ ARAMA MOTORU
+# POPÜLERLİK SIRALI VE ÇOKLU MAĞAZA ARAMA MOTORU
 @app.get("/api/search")
 def search_products(q: str):
     if not q:
@@ -151,7 +150,7 @@ def search_products(q: str):
     q_encoded = requests.utils.quote(q_clean)
     results = []
 
-    # 1. CANLI ARAMA DENEMESİ
+    # Canlı Arama Tüneli
     search_url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(q_clean + ' fiyat trendyol amazon hepsiburada')}"
     
     try:
@@ -183,20 +182,20 @@ def search_products(q: str):
                     t_text = title_el.get_text().strip()
                     s_text = snippet_el.get_text() if snippet_el else ""
 
+                    price_val = None
+                    if not any(w in s_text.lower() for w in ['taksit', 'ayda', 'vade']):
+                        price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', s_text, re.IGNORECASE)
+                        if price_match:
+                            parsed_p = clean_price_value(price_match.group(1))
+                            if parsed_p > 100:
+                                price_val = parsed_p
+
                     store_name = "E-Ticaret"
                     link_lower = link.lower()
                     if 'trendyol.com' in link_lower: store_name = "Trendyol"
                     elif 'amazon.com.tr' in link_lower: store_name = "Amazon TR"
                     elif 'hepsiburada.com' in link_lower: store_name = "Hepsiburada"
                     elif 'n11.com' in link_lower: store_name = "N11"
-
-                    price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', s_text, re.IGNORECASE)
-                    price_val = None
-                    if price_match:
-                        try:
-                            price_val = float(price_match.group(1).replace('.', '').replace(',', '.'))
-                        except Exception:
-                            pass
 
                     results.append({
                         "name": t_text.replace('...', ''),
@@ -210,50 +209,15 @@ def search_products(q: str):
     except Exception as e:
         print("Arama hatası:", e)
 
-    # 2. MAĞAZA LİSTESİ (Arama boş kalırsa devreye giren popüler mağazalar)
+    # Sıralı Popüler Mağaza Arama Sayfaları (Fallback)
     popular_stores = [
-        {
-            "name": f"{q_clean} - Trendyol",
-            "store": "Trendyol",
-            "price": None,
-            "url": f"https://www.trendyol.com/sr?q={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - Amazon TR",
-            "store": "Amazon TR",
-            "price": None,
-            "url": f"https://www.amazon.com.tr/s?k={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - Hepsiburada",
-            "store": "Hepsiburada",
-            "price": None,
-            "url": f"https://www.hepsiburada.com/ara?q={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - N11",
-            "store": "N11",
-            "price": None,
-            "url": f"https://www.n11.com/arama?q={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - Pazarama",
-            "store": "Pazarama",
-            "price": None,
-            "url": f"https://www.pazarama.com/arama?q={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - Çiçeksepeti",
-            "store": "Çiçeksepeti",
-            "price": None,
-            "url": f"https://www.ciceksepeti.com/arama?query={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - İncehesap",
-            "store": "İncehesap",
-            "price": None,
-            "url": f"https://www.incehesap.com/arama/?q={q_encoded}"
-        }
+        {"name": f"{q_clean} - Trendyol Arama", "store": "Trendyol", "price": None, "url": f"https://www.trendyol.com/sr?q={q_encoded}"},
+        {"name": f"{q_clean} - Amazon TR Arama", "store": "Amazon TR", "price": None, "url": f"https://www.amazon.com.tr/s?k={q_encoded}"},
+        {"name": f"{q_clean} - Hepsiburada Arama", "store": "Hepsiburada", "price": None, "url": f"https://www.hepsiburada.com/ara?q={q_encoded}"},
+        {"name": f"{q_clean} - N11 Arama", "store": "N11", "price": None, "url": f"https://www.n11.com/arama?q={q_encoded}"},
+        {"name": f"{q_clean} - Pazarama Arama", "store": "Pazarama", "price": None, "url": f"https://www.pazarama.com/arama?q={q_encoded}"},
+        {"name": f"{q_clean} - Çiçeksepeti Arama", "store": "Çiçeksepeti", "price": None, "url": f"https://www.ciceksepeti.com/arama?query={q_encoded}"},
+        {"name": f"{q_clean} - İncehesap Arama", "store": "İncehesap", "price": None, "url": f"https://www.incehesap.com/arama/?q={q_encoded}"}
     ]
 
     if len(results) < 3:
@@ -274,10 +238,8 @@ def get_products():
 
 @app.post("/api/add-product")
 def add_product(item: ProductCreate):
-    # Canlı fiyat kazıyıcı taranır
     scraped_price = fetch_real_price(item.url)
-    
-    # Gerçek fiyat söküldüyse o basılır, sökülemediyse hedef fiyat baz alınır
+    # Varsayılan saçma fiyat yok; canlı söküldüyse o, sökülemediyse hedef fiyat (veya 0) atanır
     final_price = scraped_price if (scraped_price and scraped_price > 0) else item.target_price
 
     new_prod = {
