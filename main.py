@@ -8,7 +8,6 @@ import json
 
 app = FastAPI()
 
-# CORS Ayarları (Frontend'in sunucuyla sorunsuz konuşması için)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,7 +16,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Ürün Deposu (Bellek içi)
 products = []
 
 class ProductCreate(BaseModel):
@@ -26,11 +24,26 @@ class ProductCreate(BaseModel):
     target_price: float
     url: str
 
+def resolve_url(url: str) -> str:
+    """amzn.eu, ty.gl gibi kısaltılmış linkleri uzun orijinal adrese çevirir."""
+    try:
+        if "amzn.eu" in url or "ty.gl" in url or "bit.ly" in url:
+            resp = requests.head(url, allow_redirects=True, timeout=5)
+            return resp.url
+    except Exception:
+        pass
+    return url
+
 def fetch_real_price(url: str, store: str):
     try:
-        # AllOrigins proxy üzerinden bot kalkanını aşıyoruz
-        proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(url)}"
-        res = requests.get(proxy_url, timeout=10)
+        final_url = resolve_url(url)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        
+        # Doğrudan veya Proxy üzerinden hızlı istek
+        proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(final_url)}"
+        res = requests.get(proxy_url, headers=headers, timeout=5)
         
         if res.status_code != 200:
             return None
@@ -70,11 +83,11 @@ def fetch_real_price(url: str, store: str):
         # 3. HTML Sınıf Taraması
         if not extracted_price:
             price_text = ""
-            if 'trendyol' in url.lower():
+            if 'trendyol' in final_url.lower():
                 el = soup.select_one('.prc-dsc') or soup.select_one('.prc-slg') or soup.select_one('.product-price-container')
                 if el: price_text = el.get_text()
-            elif 'amazon' in url.lower():
-                el = soup.select_one('.a-price-whole') or soup.select_one('#priceblock_ourprice')
+            elif 'amazon' in final_url.lower():
+                el = soup.select_one('.a-price-whole') or soup.select_one('#priceblock_ourprice') or soup.select_one('.a-offscreen')
                 if el: price_text = el.get_text()
 
             if price_text:
@@ -85,18 +98,23 @@ def fetch_real_price(url: str, store: str):
     except Exception:
         return None
 
+@app.get("/")
+def read_root():
+    return {"status": "ok", "message": "Axion Backend Engine Active"}
+
 @app.get("/api/products")
 def get_products():
     return products
 
 @app.post("/api/add-product")
 def add_product(item: ProductCreate):
+    # Fiyat kazıma zaman aşımına uğrarsa hedef fiyatı yedek alır, asılı kalmaz
     scraped_price = fetch_real_price(item.url, item.store)
-    final_price = scraped_price if scraped_price else item.target_price
+    final_price = scraped_price if scraped_price and scraped_price > 0 else item.target_price
 
     new_prod = {
         "id": str(len(products) + 1),
-        "name": item.name,  # Senin elinle girdiğin ürün adı
+        "name": item.name,
         "store": item.store,
         "target_price": item.target_price,
         "current_price": final_price,
