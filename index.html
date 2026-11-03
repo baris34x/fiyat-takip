@@ -70,9 +70,9 @@
             </div>
             <div>
                 <h1 class="text-sm font-black text-white tracking-wide flex items-center gap-1.5">
-                    AXION <span class="text-[8px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-mono font-bold">ULTRA v18.0</span>
+                    AXION <span class="text-[8px] bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2 py-0.5 rounded-full font-mono font-bold">AI SEARCH</span>
                 </h1>
-                <p class="text-[10px] text-gray-400 font-medium">Real-Time Backend Scraper</p>
+                <p class="text-[10px] text-gray-400 font-medium">Real-Time Price Intelligence</p>
             </div>
         </div>
         <button onclick="triggerPriceCheck()" id="refreshBtn" class="btn-interact bg-gray-800/80 hover:bg-gray-700 text-gray-200 text-xs px-3.5 py-2 rounded-xl border border-gray-700/80 font-bold flex items-center gap-2 shadow">
@@ -83,7 +83,6 @@
 
     <!-- TAB 1: RADAR / TAKİP LİSTESİ -->
     <main id="tab-home" class="p-4 space-y-4 max-w-md mx-auto">
-        <!-- Özet Bilgi Paneli -->
         <div class="grid grid-cols-3 gap-2.5">
             <div class="glass-card p-3 rounded-2xl text-center card-hover flex flex-col justify-center">
                 <p class="text-[9px] text-gray-400 font-bold uppercase tracking-wider mb-1">Radarda</p>
@@ -99,7 +98,6 @@
             </div>
         </div>
 
-        <!-- Ürünler Listesi -->
         <div id="productList" class="space-y-3">
             <div class="text-center py-12 glass-card rounded-3xl border border-gray-800">
                 <i class="fa-solid fa-circle-notch fa-spin text-2xl mb-3 text-orange-500"></i>
@@ -108,7 +106,44 @@
         </div>
     </main>
 
-    <!-- TAB 2: ÜRÜN EKLE (Ürün Adını Sen Girersin) -->
+    <!-- TAB 2: AI KEŞFET VE CANLI ARAMA (YENİ SİSTEM) -->
+    <section id="tab-discover" class="p-4 max-w-md mx-auto hidden space-y-4">
+        <div class="glass-card p-6 rounded-3xl border border-gray-800 shadow-2xl">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-2xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20 shadow-inner">
+                    <i class="fa-solid fa-brain text-blue-400 text-lg"></i>
+                </div>
+                <div>
+                    <h2 class="text-sm font-black text-white">AI Canlı Ürün Arama</h2>
+                    <p class="text-[10px] text-gray-400">Örn: "PS5", "Logitech G29" yaz, mağaza fiyatları dökülsün</p>
+                </div>
+            </div>
+
+            <div class="relative">
+                <input type="text" id="aiSearchQuery" placeholder="Ürün adı yazın (Örn: PS5)..." onkeypress="if(event.key==='Enter') runAiSearch()" class="w-full bg-[#080d1a] border border-gray-800 rounded-2xl pl-11 pr-24 py-3.5 text-xs text-white focus:outline-none focus:border-blue-500 transition shadow-inner">
+                <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-xs"></i>
+                <button onclick="runAiSearch()" id="aiSearchBtn" class="btn-interact absolute right-2 top-1/2 -translate-y-1/2 bg-blue-600 hover:bg-blue-500 text-white text-[10px] px-3.5 py-2 rounded-xl font-bold flex items-center gap-1 shadow">
+                    <i class="fa-solid fa-bolt"></i> AI Ara
+                </button>
+            </div>
+
+            <div class="flex gap-2 pt-3 overflow-x-auto no-scrollbar">
+                <button onclick="quickSearch('PS5 Console')" class="btn-interact text-[10px] font-bold px-3 py-1.5 bg-gray-800/80 text-gray-300 rounded-xl border border-gray-700 whitespace-nowrap">🎮 PS5</button>
+                <button onclick="quickSearch('Logitech G29')" class="btn-interact text-[10px] font-bold px-3 py-1.5 bg-gray-800/80 text-gray-300 rounded-xl border border-gray-700 whitespace-nowrap">🏎️ G29 Direksiyon</button>
+                <button onclick="quickSearch('iPhone 15')" class="btn-interact text-[10px] font-bold px-3 py-1.5 bg-gray-800/80 text-gray-300 rounded-xl border border-gray-700 whitespace-nowrap">📱 iPhone 15</button>
+            </div>
+        </div>
+
+        <div id="aiSearchResults" class="space-y-3">
+            <div class="text-center py-8 glass-card rounded-3xl border border-gray-800">
+                <i class="fa-solid fa-compass text-3xl text-blue-500/40 mb-2"></i>
+                <p class="text-xs text-gray-400 font-medium">Aramak istediğiniz ürünü yazın,</p>
+                <p class="text-[10px] text-gray-500">Render AI tüm mağazalardaki canlı kartları getirsin.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 3: MANUEL ÜRÜN EKLE -->
     <section id="tab-add" class="p-4 max-w-md mx-auto hidden space-y-4">
         <div class="glass-card p-6 rounded-3xl border border-gray-800 shadow-2xl">
             <div class="flex items-center gap-3 mb-5">
@@ -116,8 +151,8 @@
                     <i class="fa-solid fa-crosshairs text-orange-500 text-base"></i>
                 </div>
                 <div>
-                    <h2 class="text-sm font-black text-white">Radara Yeni Ürün Ekle</h2>
-                    <p class="text-[10px] text-gray-400">Ürün adını sen belirle, fiyatı sunucu canlı kazısın</p>
+                    <h2 class="text-sm font-black text-white">Direkt Link Yapıştırarak Ekle</h2>
+                    <p class="text-[10px] text-gray-400">Ürün adını sen belirle, linki yapıştır</p>
                 </div>
             </div>
 
@@ -131,10 +166,9 @@
                     <div>
                         <label class="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1.5 pl-1">Mağaza</label>
                         <select id="pStore" class="w-full bg-[#080d1a] border border-gray-800 rounded-xl px-3 py-3.5 text-xs text-white focus:outline-none focus:border-orange-500 transition">
-                            <option value="Amazon">Amazon TR</option>
+                            <option value="Amazon TR">Amazon TR</option>
                             <option value="Trendyol">Trendyol</option>
                             <option value="Hepsiburada">Hepsiburada</option>
-                            <option value="Teknosa">Teknosa</option>
                             <option value="Diğer">Diğer Mağaza</option>
                         </select>
                     </div>
@@ -160,46 +194,21 @@
         </div>
     </section>
 
-    <!-- TAB 3: DÜĞÜM / SİSTEM AYARLARI -->
-    <section id="tab-settings" class="p-4 max-w-md mx-auto hidden space-y-4">
-        <div class="glass-card p-6 rounded-3xl border border-gray-800 space-y-4">
-            <h2 class="text-sm font-black text-white border-b border-gray-800 pb-3 flex items-center gap-2">
-                <i class="fa-solid fa-server text-orange-500"></i> Axion Backend Düğüm Ayarları
-            </h2>
-            
-            <div class="flex items-center justify-between py-1">
-                <div>
-                    <p class="text-xs font-bold text-gray-200">Arka Plan Otomatik Scraper</p>
-                    <p class="text-[10px] text-gray-400">Render Cloud Puppeteer Engine</p>
-                </div>
-                <span class="text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-1 rounded-lg font-bold">AKTİF</span>
-            </div>
-
-            <div class="flex items-center justify-between py-1 border-t border-gray-800/60 pt-3">
-                <div>
-                    <p class="text-xs font-bold text-gray-200">API Endpoint Sunucusu</p>
-                    <p class="text-[10px] font-mono text-gray-400 truncate max-w-[200px]">fiyat-takip-backend.onrender.com</p>
-                </div>
-                <span class="text-[10px] bg-blue-950 text-blue-400 border border-blue-800 px-2.5 py-1 rounded-lg font-bold">ONLINE</span>
-            </div>
-        </div>
-    </section>
-
     <!-- ALT GEZİNME BAR (BOTTOM NAV) -->
-    <nav class="fixed bottom-0 left-0 right-0 glass-nav py-3 px-8 flex justify-around items-center z-50 max-w-md mx-auto">
+    <nav class="fixed bottom-0 left-0 right-0 glass-nav py-3 px-6 flex justify-around items-center z-50 max-w-md mx-auto">
         <button onclick="switchTab('home')" id="nav-home" class="nav-active btn-interact flex flex-col items-center text-xs">
             <i class="fa-solid fa-chart-line text-lg mb-1"></i>
             <span class="text-[10px] font-bold">Radar</span>
+        </button>
+        <button onclick="switchTab('discover')" id="nav-discover" class="btn-interact flex flex-col items-center text-gray-400 text-xs">
+            <i class="fa-solid fa-compass text-lg mb-1"></i>
+            <span class="text-[10px] font-bold">AI Keşfet</span>
         </button>
         <button onclick="switchTab('add')" id="nav-add" class="btn-interact flex flex-col items-center text-gray-400 text-xs relative">
             <div class="axion-gradient text-white p-3 rounded-full -mt-7 border-4 border-[#030712] shadow-lg shadow-orange-950/50 axion-glow">
                 <i class="fa-solid fa-plus text-base"></i>
             </div>
             <span class="text-[10px] font-bold mt-1">Ekle</span>
-        </button>
-        <button onclick="switchTab('settings')" id="nav-settings" class="btn-interact flex flex-col items-center text-gray-400 text-xs">
-            <i class="fa-solid fa-sliders text-lg mb-1"></i>
-            <span class="text-[10px] font-bold">Sistem</span>
         </button>
     </nav>
 
@@ -250,15 +259,15 @@
         }
 
         function switchTab(tab) {
-            ['home', 'add', 'settings'].forEach(t => {
+            ['home', 'discover', 'add'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
-                document.getElementById(`nav-${t}`).classList.remove('nav-active', 'text-orange-500');
+                document.getElementById(`nav-${t}`).classList.remove('nav-active', 'text-orange-500', 'text-blue-400');
                 document.getElementById(`nav-${t}`).classList.add('text-gray-400');
             });
 
             document.getElementById(`tab-${tab}`).classList.remove('hidden');
             const activeNav = document.getElementById(`nav-${tab}`);
-            activeNav.classList.add('nav-active', 'text-orange-500');
+            activeNav.classList.add('nav-active', tab === 'discover' ? 'text-blue-400' : 'text-orange-500');
             activeNav.classList.remove('text-gray-400');
 
             if(tab === 'home') loadProducts();
@@ -280,7 +289,7 @@
                         <div class="text-center py-12 glass-card rounded-3xl border border-gray-800">
                             <i class="fa-solid fa-radar text-3xl text-gray-600 mb-3"></i>
                             <p class="text-xs text-gray-400 font-medium">Axion radarında henüz ürün yok.</p>
-                            <button onclick="switchTab('add')" class="mt-4 text-xs axion-gradient text-white px-4 py-2.5 rounded-xl font-bold shadow-md">İlk Ürünü Ekleyin</button>
+                            <button onclick="switchTab('discover')" class="mt-4 text-xs bg-blue-600 text-white px-4 py-2.5 rounded-xl font-bold shadow-md">AI ile Ürün Ara</button>
                         </div>`;
                     document.getElementById('targetHitCount').innerText = "0";
                     return;
@@ -293,7 +302,6 @@
                     const isTarget = currPrice <= tgtPrice;
 
                     if (isTarget) targetHitCount++;
-
                     const chartId = `chart-${index}`;
 
                     container.innerHTML += `
@@ -309,7 +317,6 @@
 
                             <h3 class="font-bold text-xs text-white leading-snug line-clamp-2">${item.name}</h3>
                             
-                            <!-- Canlı Trend Grafiği -->
                             <div class="my-1 h-16 w-full">
                                 <canvas id="${chartId}"></canvas>
                             </div>
@@ -333,12 +340,6 @@
 
             } catch (err) {
                 console.error("Axion veri hatası:", err);
-                container.innerHTML = `
-                    <div class="text-center py-10 glass-card rounded-3xl border border-rose-900/30 text-rose-400 text-xs">
-                        <i class="fa-solid fa-triangle-exclamation text-2xl mb-2 text-rose-500"></i>
-                        <p>Render sunucusuyla iletişim kurulamadı.</p>
-                        <p class="text-[10px] text-gray-500 mt-1">Sunucu uykuda olabilir, lütfen birkaç saniye sonra tekrar deneyin.</p>
-                    </div>`;
             }
         }
 
@@ -370,6 +371,92 @@
             });
         }
 
+        // CANLI AI ARAMA FONKSİYONLARI
+        function quickSearch(q) {
+            document.getElementById('aiSearchQuery').value = q;
+            runAiSearch();
+        }
+
+        async function runAiSearch() {
+            const query = document.getElementById('aiSearchQuery').value.trim();
+            const container = document.getElementById('aiSearchResults');
+            const btn = document.getElementById('aiSearchBtn');
+            if(!query) return;
+
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> <span>Aranıyor...</span>`;
+            btn.disabled = true;
+
+            container.innerHTML = `
+                <div class="glass-card p-6 rounded-3xl text-center border border-gray-800">
+                    <i class="fa-solid fa-brain fa-spin text-2xl text-blue-400 mb-2"></i>
+                    <p class="text-xs text-gray-200 font-bold">Render AI web mağazalarını tarıyor...</p>
+                    <p class="text-[10px] text-gray-500">"${query}" için canlı sonuçlar çekiliyor.</p>
+                </div>`;
+
+            try {
+                const res = await fetch(`${API_URL}/search?q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+
+                if(data && data.length > 0) {
+                    container.innerHTML = '';
+                    data.forEach(item => {
+                        container.innerHTML += `
+                            <div class="glass-card rounded-3xl p-4 border border-gray-800 flex flex-col gap-2.5">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[9px] font-bold px-2.5 py-0.5 rounded bg-gray-800 text-blue-400 border border-gray-700">${item.store}</span>
+                                    <span class="text-xs font-black text-emerald-400">${item.price ? formatMoney(item.price) : 'Canlı Sayfada'}</span>
+                                </div>
+                                <h4 class="text-xs font-bold text-white leading-snug line-clamp-2">${item.name}</h4>
+                                <div class="flex gap-2 mt-1">
+                                    <button onclick="directAddFromSearch('${item.name.replace(/'/g, "\\'")}', ${item.price || 1000}, '${item.store}', '${item.url}')" class="btn-interact flex-1 axion-gradient text-white text-[10px] font-bold py-2.5 rounded-xl shadow flex items-center justify-center gap-1">
+                                        <i class="fa-solid fa-plus text-[9px]"></i> Radara Ekle
+                                    </button>
+                                    <a href="${item.url}" target="_blank" class="btn-interact bg-gray-800 text-gray-300 p-2.5 rounded-xl text-xs flex items-center justify-center">
+                                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                    </a>
+                                </div>
+                            </div>`;
+                    });
+                } else {
+                    throw new Error();
+                }
+            } catch(e) {
+                container.innerHTML = `
+                    <div class="glass-card p-5 rounded-3xl border border-gray-800 text-center space-y-2">
+                        <i class="fa-solid fa-wifi text-2xl text-orange-400"></i>
+                        <p class="text-xs font-bold text-white">Canlı Arama Sonucu Bulunamadı</p>
+                        <p class="text-[10px] text-gray-400">Farklı bir kelime arayabilir veya doğrudan link ekleyebilirsiniz.</p>
+                    </div>`;
+            } finally {
+                btn.innerHTML = `<i class="fa-solid fa-bolt"></i> <span>AI Ara</span>`;
+                btn.disabled = false;
+            }
+        }
+
+        async function directAddFromSearch(name, price, store, url) {
+            showToast("Ürün radara ekleniyor...", "info");
+            const newProduct = {
+                name: name,
+                store: store,
+                target_price: price > 0 ? (price * 0.9) : 1000,
+                url: url
+            };
+
+            try {
+                const res = await fetch(`${API_URL}/add-product`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newProduct)
+                });
+                if(res.ok) {
+                    showToast("Ürün radara eklendi! 🚀", "success");
+                    switchTab('home');
+                }
+            } catch(e) {
+                showToast("Ekleme hatası.", "error");
+            }
+        }
+
         async function addNewProduct(e) {
             e.preventDefault();
             const btn = document.getElementById('submitBtn');
@@ -385,12 +472,11 @@
                 name: nameInput,
                 store: storeInput,
                 target_price: targetPriceInput,
-                url: urlInput,
-                initial_price: targetPriceInput
+                url: urlInput
             };
 
             try {
-                showToast("Backend sunucusu canlı fiyatı kazıyor...", "info");
+                showToast("Backend canlı fiyatı kazıyor...", "info");
                 const response = await fetch(`${API_URL}/add-product`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -398,14 +484,13 @@
                 });
 
                 if(response.ok) {
-                    showToast("Ürün eklendi ve gerçek fiyatı çekildi! 🚀", "success");
+                    showToast("Ürün eklendi! 🚀", "success");
                     e.target.reset();
                     switchTab('home');
                 } else {
                     showToast("Ürün eklenirken sunucu hatası oluştu.", "error");
                 }
             } catch (err) {
-                console.error(err);
                 showToast("Backend sunucusuna ulaşılamadı.", "error");
             } finally {
                 btn.innerHTML = `<span>Radara Al ve Fiyatı Kazı</span> <i class="fa-solid fa-rocket text-xs"></i>`;
@@ -419,14 +504,13 @@
             icon.classList.add('fa-spin');
             btn.disabled = true;
 
-            showToast("Tüm ürünlerin gerçek fiyatı backend tarafından taranıyor...", "info");
+            showToast("Tüm ürünlerin fiyatı taranıyor...", "info");
 
             try {
                 await fetch(`${API_URL}/check-prices`, { method: 'POST' });
                 await loadProducts();
                 showToast("Fiyatlar güncellendi!", "success");
             } catch(e) {
-                console.error(e);
                 showToast("Taramada hata oluştu.", "error");
             } finally {
                 icon.classList.remove('fa-spin');
@@ -435,14 +519,12 @@
         }
 
         async function deleteProduct(id) {
-            if(!confirm("Bu ürünü radardan kaldırmak istediğinize emin misiniz?")) return;
+            if(!confirm("Bu ürünü silmek istediğinize emin misiniz?")) return;
             try {
                 const res = await fetch(`${API_URL}/products/${id}`, { method: 'DELETE' });
                 if(res.ok) {
                     showToast("Ürün silindi.", "success");
                     loadProducts();
-                } else {
-                    showToast("Silinemedi.", "error");
                 }
             } catch(e) {
                 showToast("Sunucu hatası.", "error");
