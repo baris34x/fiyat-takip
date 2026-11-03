@@ -24,14 +24,20 @@ class ProductCreate(BaseModel):
     target_price: float
     url: str
 
+# Gerçek Chrome Tarayıcı Başlıkları (Bot Engellerini Aşmak İçin)
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-    'Accept-Language': 'tr-TR,tr;q=0.9',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+    'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Cache-Control': 'max-age=0',
+    'Upgrade-Insecure-Requests': '1',
+    'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"Windows"'
 }
 
 def resolve_url(url: str) -> str:
-    """amzn.eu, ty.gl gibi kısaltılmış linkleri çözer."""
+    """Yönlendirme linklerini çözer."""
     try:
         session = requests.Session()
         session.headers.update(HEADERS)
@@ -39,13 +45,13 @@ def resolve_url(url: str) -> str:
         return res.url
     except Exception:
         try:
-            res = session.get(url, headers=HEADERS, allow_redirects=True, timeout=4)
+            res = requests.get(url, headers=HEADERS, allow_redirects=True, timeout=4)
             return res.url
         except Exception:
             return url
 
 def fetch_real_price(url: str):
-    """Linkten canlı ve gerçek fiyatı nokta atışı kazır."""
+    """Gerçek etiket fiyatını bot engelini aşarak çeker."""
     try:
         final_url = resolve_url(url)
         session = requests.Session()
@@ -53,16 +59,17 @@ def fetch_real_price(url: str):
 
         html_content = ""
         try:
-            res = session.get(final_url, timeout=4)
+            res = session.get(final_url, timeout=5)
             if res.status_code == 200:
                 html_content = res.text
         except Exception:
             pass
 
+        # Engel durumunda AllOrigins proxy tünelini kullan
         if not html_content:
             try:
                 proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(final_url)}"
-                res = session.get(proxy_url, timeout=4)
+                res = session.get(proxy_url, timeout=5)
                 if res.status_code == 200:
                     data = res.json()
                     html_content = data.get('contents', '')
@@ -75,28 +82,52 @@ def fetch_real_price(url: str):
         soup = BeautifulSoup(html_content, 'html.parser')
         extracted_price = None
 
-        # 1. JSON-LD Şema Taraması (En Temiz Fiyat)
-        for script in soup.find_all('script', type='application/ld+json'):
-            try:
-                data_json = json.loads(script.string)
-                items = data_json if isinstance(data_json, list) else [data_json]
-                for item in items:
-                    if 'offers' in item:
-                        offers = item['offers']
-                        offer_list = offers if isinstance(offers, list) else [offers]
-                        for offer in offer_list:
-                            if 'price' in offer and offer['price']:
-                                extracted_price = float(str(offer['price']).replace(',', '.'))
-                                break
-                            elif 'lowPrice' in offer and offer['lowPrice']:
-                                extracted_price = float(str(offer['lowPrice']).replace(',', '.'))
-                                break
-                    if extracted_price:
-                        break
-            except Exception:
-                continue
+        # 1. HTML Selector Taraması (Trendyol, Hepsiburada, Amazon Özel)
+        primary_selectors = [
+            'span.prc-dsc', '.prc-dsc',                           # Trendyol Orijinal Fiyat
+            '[data-test-id="price-current-price"]', '.price-bold', # Hepsiburada Orijinal Fiyat
+            '.a-price-whole', '#priceblock_ourprice',            # Amazon Orijinal Fiyat
+            '.product-price-container', '.prc-box-sll'
+        ]
 
-        # 2. Meta Tag Taraması
+        for sel in primary_selectors:
+            el = soup.select_one(sel)
+            if el:
+                text = el.get_text().strip()
+                clean_text = text.replace('.', '').replace(',', '.')
+                match = re.search(r'\d+(\.\d+)?', clean_text)
+                if match:
+                    try:
+                        val = float(match.group(0))
+                        if val > 0:
+                            extracted_price = val
+                            break
+                    except Exception:
+                        pass
+
+        # 2. JSON-LD Şema Taraması (Görsel Seçiciler Bulamazsa)
+        if not extracted_price:
+            for script in soup.find_all('script', type='application/ld+json'):
+                try:
+                    data_json = json.loads(script.string)
+                    items = data_json if isinstance(data_json, list) else [data_json]
+                    for item in items:
+                        if 'offers' in item:
+                            offers = item['offers']
+                            offer_list = offers if isinstance(offers, list) else [offers]
+                            for offer in offer_list:
+                                if 'price' in offer and offer['price']:
+                                    extracted_price = float(str(offer['price']).replace(',', '.'))
+                                    break
+                                elif 'lowPrice' in offer and offer['lowPrice']:
+                                    extracted_price = float(str(offer['lowPrice']).replace(',', '.'))
+                                    break
+                        if extracted_price:
+                            break
+                except Exception:
+                    continue
+
+        # 3. Meta Tag Taraması
         if not extracted_price:
             for meta_prop in ['product:price:amount', 'og:price:amount', 'price']:
                 meta_price = soup.find('meta', property=meta_prop) or soup.find('meta', attrs={'name': meta_prop})
@@ -109,28 +140,6 @@ def fetch_real_price(url: str):
                             break
                     except Exception:
                         pass
-
-        # 3. HTML Selector Taraması (Trendyol, Amazon, Hepsiburada Özel)
-        if not extracted_price:
-            selectors = [
-                '.prc-dsc', '.prc-slg', '.product-price-container',
-                '.a-price .a-offscreen', '#priceblock_ourprice', '#priceblock_dealprice',
-                '.a-price-whole', '[data-test-id="price-current-price"]'
-            ]
-            for sel in selectors:
-                el = soup.select_one(sel)
-                if el:
-                    text = el.get_text().strip()
-                    clean_text = text.replace('.', '').replace(',', '.')
-                    match = re.search(r'\d+(\.\d+)?', clean_text)
-                    if match:
-                        try:
-                            val = float(match.group(0))
-                            if val > 0:
-                                extracted_price = val
-                                break
-                        except Exception:
-                            pass
 
         return extracted_price
     except Exception:
@@ -145,7 +154,6 @@ def search_products(q: str):
     q_clean = q.strip()
     q_encoded = requests.utils.quote(q_clean)
 
-    # Popülerlik sırasına göre mağaza arama linkleri
     popular_stores = [
         {
             "name": f"{q_clean} - Trendyol",
@@ -205,7 +213,7 @@ def get_products():
 def add_product(item: ProductCreate):
     scraped_price = fetch_real_price(item.url)
     
-    # Gerçek fiyat söküldüyse onu kullanır
+    # Gerçek canlı fiyat söküldüyse onu kullanır, engellendiyse hedef fiyatı yedek alır
     final_price = scraped_price if (scraped_price and scraped_price > 0) else item.target_price
 
     new_prod = {
