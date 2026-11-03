@@ -29,149 +29,164 @@ HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
     'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
     'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+    'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+    'Sec-Ch-Ua-Mobile': '?0',
+    'Sec-Ch-Ua-Platform': '"Windows"'
 }
 
 def clean_price(val) -> float:
-    """Türkçe fiyat formatlarını (Örn: 28.214,00 TL -> 28214.0) doğru sayıya çevirir."""
-    if val is None:
+    """Metin veya sayı olarak gelen fiyat bilgisini güvenli float tipe dönüştürür."""
+    if not val:
         return 0.0
     try:
         if isinstance(val, (int, float)):
             return float(val)
         
         s = str(val).strip()
-        # Sadece rakam, nokta ve virgülü tut
-        s = re.sub(r'[^\d.,]', '', s)
-        if not s:
-            return 0.0
-        
-        if ',' in s and '.' in s:
-            s = s.replace('.', '').replace(',', '.')
-        elif ',' in s:
-            s = s.replace(',', '.')
-        elif '.' in s:
-            parts = s.split('.')
-            if len(parts) > 2:
-                s = "".join(parts)
-            elif len(parts) == 2 and len(parts[1]) == 3:
-                s = parts[0] + parts[1]
-
-        match = re.search(r'\d+(\.\d+)?', s)
-        if match:
-            return float(match.group(0))
+        matches = re.findall(r'\d+(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?|\d+', s)
+        for m in matches:
+            cleaned = m.replace('.', '').replace(',', '.')
+            try:
+                v = float(cleaned)
+                if v > 0:
+                    return v
+            except ValueError:
+                continue
     except Exception:
         pass
     return 0.0
 
 def resolve_url(url: str) -> str:
-    """Kısaltılmış ve mobil linkleri çözer."""
+    """Mobil ve yönlendirmeli bağlantıları çözer."""
     try:
         session = requests.Session()
         session.headers.update(HEADERS)
-        res = session.head(url, allow_redirects=True, timeout=4)
+        res = session.get(url, allow_redirects=True, timeout=5)
         return res.url
     except Exception:
-        try:
-            res = requests.get(url, headers=HEADERS, allow_redirects=True, timeout=4)
-            return res.url
-        except Exception:
-            return url
+        return url
 
-def fetch_real_price(url: str):
-    """Amazon, Trendyol, Hepsiburada ve diğer mağazalar için stabil fiyat kazıma."""
+def fetch_trendyol_price(url: str) -> float:
+    """Trendyol ürün kodunu (-p-123456) söküp doğrudan API üzerinden fiyatı alır."""
+    match_id = re.search(r'[-/]p-(\d+)', url) or re.search(r'pi=(\d+)', url)
+    if match_id:
+        pid = match_id.group(1)
+        api_url = f"https://public-mdc.trendyol.com/discovery-web-productdetail-gwb-service/api/productDetail/{pid}"
+        try:
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Culture": "tr-TR",
+                "x-storefront-id": "1"
+            }
+            res = requests.get(api_url, headers=headers, timeout=5)
+            if res.status_code == 200:
+                data = res.json()
+                p_info = data.get('result', {}).get('price', {})
+                val = p_info.get('discountedPrice', {}).get('value') or \
+                      p_info.get('sellingPrice', {}).get('value') or \
+                      p_info.get('originalPrice', {}).get('value')
+                price = clean_price(val)
+                if price > 0:
+                    return price
+        except Exception:
+            pass
+    return 0.0
+
+def fetch_page_html(url: str) -> str:
+    """Sayfa HTML içeriğini doğrudan veya proxy tünelleri üzerinden çeker."""
+    session = requests.Session()
+    session.headers.update(HEADERS)
+    
+    # 1. Doğrudan İstek
+    try:
+        res = session.get(url, timeout=5)
+        if res.status_code == 200 and len(res.text) > 500:
+            return res.text
+    except Exception:
+        pass
+        
+    # 2. Proxy Tünel 1 (AllOrigins)
+    try:
+        proxy_url = f"https://api.allorigins.win/raw?url={urllib.parse.quote(url)}"
+        res = session.get(proxy_url, timeout=5)
+        if res.status_code == 200 and len(res.text) > 500:
+            return res.text
+    except Exception:
+        pass
+
+    # 3. Proxy Tünel 2 (CorsProxy)
+    try:
+        proxy_url = f"https://corsproxy.io/?{urllib.parse.quote(url)}"
+        res = session.get(proxy_url, timeout=5)
+        if res.status_code == 200 and len(res.text) > 500:
+            return res.text
+    except Exception:
+        pass
+
+    return ""
+
+def fetch_real_price(url: str) -> float:
+    """Amazon, Trendyol, Hepsiburada ve tüm mağazalardan fiyatı kazır."""
     try:
         final_url = resolve_url(url)
         url_lower = final_url.lower()
 
-        # 1. TRENDYOL İÇİN DİREKT API + SCRIPT PARSING
+        # 1. TRENDYOL ÖZEL API SÜZÜCÜ
         if 'trendyol.com' in url_lower:
-            match_id = re.search(r'-p-(\d+)', final_url) or re.search(r'/p-(\d+)', final_url)
-            if match_id:
-                product_id = match_id.group(1)
-                api_url = f"https://public-mdc.trendyol.com/discovery-web-productdetail-gwb-service/api/productDetail/{product_id}"
-                try:
-                    res = requests.get(api_url, headers=HEADERS, timeout=5)
-                    if res.status_code == 200:
-                        data = res.json()
-                        price_info = data.get('result', {}).get('price', {})
-                        p_val = price_info.get('discountedPrice', {}).get('value') or \
-                                price_info.get('sellingPrice', {}).get('value') or \
-                                price_info.get('originalPrice', {}).get('value')
-                        val = clean_price(p_val)
-                        if val > 0:
-                            return val
-                except Exception:
-                    pass
+            price = fetch_trendyol_price(final_url)
+            if price > 0:
+                return price
 
-        # 2. SAYFA HTML İÇERİĞİNİ İNDİRME (Standart Requests + Proxy Fallback)
-        session = requests.Session()
-        session.headers.update(HEADERS)
-        html_content = ""
+        # 2. HTML İÇERİĞİNİ YÜKLE
+        html = fetch_page_html(final_url)
+        if not html:
+            return 0.0
 
-        try:
-            res = session.get(final_url, timeout=5)
-            if res.status_code == 200:
-                html_content = res.text
-        except Exception:
-            pass
+        soup = BeautifulSoup(html, 'html.parser')
 
-        if not html_content:
-            try:
-                proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(final_url)}"
-                res = session.get(proxy_url, timeout=5)
-                if res.status_code == 200:
-                    html_content = res.json().get('contents', '')
-            except Exception:
-                pass
-
-        if not html_content:
-            return None
-
-        soup = BeautifulSoup(html_content, 'html.parser')
-
-        # 3. AMAZON ÖZEL SELECTOR'LARI
+        # 3. AMAZON ÖZEL SELECTOR'LARI (Amazon'da Çalışan Orijinal Mantık)
         if 'amazon' in url_lower:
             amazon_selectors = [
                 'span.a-price span.a-offscreen',
                 '.a-price-whole',
                 '#priceblock_ourprice',
                 '#priceblock_dealprice',
-                '.a-price .a-offscreen'
+                'span.a-color-price'
             ]
             for sel in amazon_selectors:
                 el = soup.select_one(sel)
                 if el:
-                    val = clean_price(el.get_text())
-                    if val > 0:
-                        return val
+                    price = clean_price(el.get_text())
+                    if price > 0:
+                        return price
 
-        # 4. HEPSİBURADA & TRENDYOL DOM SELECTOR'LARI
-        primary_selectors = [
-            'span.prc-dsc', '.prc-dsc',                            # Trendyol
-            '[data-test-id="price-current-price"]', '.price-bold',  # Hepsiburada
-            '.product-price-container', '.prc-box-sll'
+        # 4. HEPSİBURADA ÖZEL SELECTOR'LARI
+        if 'hepsiburada' in url_lower:
+            hb_selectors = [
+                '[data-test-id="price-current-price"]',
+                '.price-bold',
+                '#offering-price'
+            ]
+            for sel in hb_selectors:
+                el = soup.select_one(sel)
+                if el:
+                    price = clean_price(el.get_text())
+                    if price > 0:
+                        return price
+
+        # 5. GENEL MAĞAZA SELECTOR'LARI
+        general_selectors = [
+            'span.prc-dsc', '.prc-dsc', '.prc-box-sll',
+            '.product-price-container', '.priceContainer .price'
         ]
-
-        for sel in primary_selectors:
+        for sel in general_selectors:
             el = soup.select_one(sel)
             if el:
-                val = clean_price(el.get_text())
-                if val > 0:
-                    return val
+                price = clean_price(el.get_text())
+                if price > 0:
+                    return price
 
-        # 5. SCRIPT VE JSON-LD İÇİ VERİ TARAMASI
-        for script in soup.find_all('script'):
-            stext = script.string or ""
-            if 'discountedPrice' in stext or 'currentPrice' in stext or 'hbPrice' in stext:
-                matches = re.findall(r'"discountedPrice":\s*([\d.]+)', stext) or \
-                          re.findall(r'"currentPrice":\s*([\d.]+)', stext) or \
-                          re.findall(r'"hbPrice":\s*([\d.]+)', stext)
-                if matches:
-                    val = clean_price(matches[0])
-                    if val > 0:
-                        return val
-
-        # 6. EVRENSEL JSON-LD TARAMASI
+        # 6. EVRENSEL JSON-LD ŞEMA TARAMASI
         for script in soup.find_all('script', type='application/ld+json'):
             try:
                 data_json = json.loads(script.string)
@@ -181,11 +196,10 @@ def fetch_real_price(url: str):
                         offers = item['offers']
                         offer_list = offers if isinstance(offers, list) else [offers]
                         for offer in offer_list:
-                            price_raw = offer.get('price') or offer.get('lowPrice')
-                            if price_raw:
-                                val = clean_price(price_raw)
-                                if val > 0:
-                                    return val
+                            p_raw = offer.get('price') or offer.get('lowPrice')
+                            price = clean_price(p_raw)
+                            if price > 0:
+                                return price
             except Exception:
                 continue
 
@@ -193,14 +207,14 @@ def fetch_real_price(url: str):
         for meta_prop in ['product:price:amount', 'og:price:amount', 'price']:
             meta_price = soup.find('meta', property=meta_prop) or soup.find('meta', attrs={'name': meta_prop})
             if meta_price and meta_price.get('content'):
-                val = clean_price(meta_price['content'])
-                if val > 0:
-                    return val
+                price = clean_price(meta_price['content'])
+                if price > 0:
+                    return price
 
-        return None
+        return 0.0
     except Exception as e:
         print("Kazıma hatası:", e)
-        return None
+        return 0.0
 
 @app.get("/api/search")
 def search_products(q: str):
