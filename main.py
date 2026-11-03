@@ -5,6 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import json
+import cloudscraper
 
 app = FastAPI()
 
@@ -24,47 +25,35 @@ class ProductCreate(BaseModel):
     target_price: float
     url: str
 
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
-    'Accept-Language': 'tr-TR,tr;q=0.9',
-}
-
-def resolve_url(url: str) -> str:
+def get_html_with_cloudscraper(url: str):
+    """Trendyol ve Hepsiburada bot duvarlarını masaüstü Chrome gibi davranarak aşar."""
     try:
-        session = requests.Session()
-        session.headers.update(HEADERS)
-        res = session.head(url, allow_redirects=True, timeout=4)
-        return res.url
-    except Exception:
-        try:
-            res = session.get(url, headers=HEADERS, allow_redirects=True, timeout=4)
-            return res.url
-        except Exception:
-            return url
+        scraper = cloudscraper.create_scraper(
+            browser={
+                'browser': 'chrome',
+                'platform': 'windows',
+                'desktop': True
+            }
+        )
+        res = scraper.get(url, timeout=8)
+        if res.status_code == 200:
+            return res.text
+    except Exception as e:
+        print("Scraper hatası:", e)
+    return ""
 
 def fetch_real_price(url: str):
-    """Trendyol, Amazon ve Hepsiburada için bot kalkanını proxy + JS state parsing ile aşar."""
+    """Sayfa HTML'inden ve script içerisindeki veri objelerinden peşin gerçek fiyatı çeker."""
     try:
-        final_url = resolve_url(url)
-        session = requests.Session()
-        session.headers.update(HEADERS)
+        html_content = get_html_with_cloudscraper(url)
 
-        html_content = ""
-        
-        # 1. Önce Proxy Tüneli (Trendyol Bot Engellerini Aşmak İçin En Etkili Yol)
-        try:
-            proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(final_url)}"
-            res = session.get(proxy_url, timeout=6)
-            if res.status_code == 200:
-                data = res.json()
-                html_content = data.get('contents', '')
-        except Exception:
-            pass
-
-        # 2. Proxy Yanıt Vermezse Doğrudan İstek Denemesi
+        # Eğer cloudscraper anlık takılırsa standart requests denemesi
         if not html_content:
             try:
-                res = session.get(final_url, timeout=5)
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+                }
+                res = requests.get(url, headers=headers, timeout=5)
                 if res.status_code == 200:
                     html_content = res.text
             except Exception:
@@ -76,35 +65,33 @@ def fetch_real_price(url: str):
         soup = BeautifulSoup(html_content, 'html.parser')
         extracted_price = None
 
-        # A. TRENDYOL İÇİN SCRIPT İÇİ KESİN VERİ PARSING (HTML Engellense Bile Çalışır)
-        if 'trendyol.com' in final_url.lower():
+        # 1. TRENDYOL SCRIPT İÇİ JSON VERİ AYRIŞTIRMA (Trendyol'un En Sağlam Fiyat Alanı)
+        if 'trendyol.com' in url.lower():
             for script in soup.find_all('script'):
-                script_text = script.string or ""
-                if 'discountedPrice' in script_text or 'sellingPrice' in script_text:
-                    price_matches = re.findall(r'"sellingPrice":\s*([\d.]+)', script_text) or re.findall(r'"discountedPrice":\s*([\d.]+)', script_text)
-                    if price_matches:
+                stext = script.string or ""
+                if 'discountedPrice' in stext or 'sellingPrice' in stext:
+                    matches = re.findall(r'"discountedPrice":\s*([\d.]+)', stext) or re.findall(r'"sellingPrice":\s*([\d.]+)', stext)
+                    if matches:
                         try:
-                            val = float(price_matches[0])
+                            val = float(matches[0])
                             if val > 0:
                                 extracted_price = val
                                 break
                         except Exception:
                             pass
 
-        # B. HTML NOKTA ATIŞI FİYAT SELECTOR'LARI
+        # 2. HTML SELECTOR TARAMASI (Trendyol, Hepsiburada, Amazon Özel)
         if not extracted_price:
-            primary_selectors = [
+            selectors = [
                 'span.prc-dsc', '.prc-dsc',                           # Trendyol Fiyat
                 '[data-test-id="price-current-price"]', '.price-bold', # Hepsiburada Fiyat
                 '.a-price-whole', '#priceblock_ourprice',            # Amazon Fiyat
                 '.product-price-container', '.prc-box-sll'
             ]
-
-            for sel in primary_selectors:
+            for sel in selectors:
                 el = soup.select_one(sel)
                 if el:
-                    text = el.get_text().strip()
-                    clean_text = text.replace('.', '').replace(',', '.')
+                    clean_text = el.get_text().strip().replace('.', '').replace(',', '.')
                     match = re.search(r'\d+(\.\d+)?', clean_text)
                     if match:
                         try:
@@ -115,7 +102,7 @@ def fetch_real_price(url: str):
                         except Exception:
                             pass
 
-        # C. JSON-LD ŞEMA TARAMASI
+        # 3. JSON-LD ŞEMA TARAMASI (Genel Mağazalar)
         if not extracted_price:
             for script in soup.find_all('script', type='application/ld+json'):
                 try:
@@ -172,6 +159,8 @@ def get_products():
 @app.post("/api/add-product")
 def add_product(item: ProductCreate):
     scraped_price = fetch_real_price(item.url)
+    
+    # Gerçek canlı fiyat kazındıysa onu basar, çekilemediyse varsayılan 0 atar
     final_price = scraped_price if (scraped_price and scraped_price > 0) else item.target_price
 
     new_prod = {
