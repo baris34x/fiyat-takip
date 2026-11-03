@@ -1,2 +1,4 @@
-playwright
-supabase
+fastapi
+uvicorn
+requests
+beautifulsoup4
