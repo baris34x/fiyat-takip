@@ -5,6 +5,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import json
+import cloudscraper
 
 app = FastAPI()
 
@@ -24,52 +25,50 @@ class ProductCreate(BaseModel):
     target_price: float
     url: str
 
-# Gerçek Chrome Tarayıcı Başlıkları (Bot Engellerini Aşmak İçin)
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
     'Accept-Language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
-    'Cache-Control': 'max-age=0',
-    'Upgrade-Insecure-Requests': '1',
-    'Sec-Ch-Ua': '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-    'Sec-Ch-Ua-Mobile': '?0',
-    'Sec-Ch-Ua-Platform': '"Windows"'
 }
 
 def resolve_url(url: str) -> str:
     """Yönlendirme linklerini çözer."""
     try:
-        session = requests.Session()
-        session.headers.update(HEADERS)
-        res = session.head(url, allow_redirects=True, timeout=4)
+        scraper = cloudscraper.create_scraper()
+        res = scraper.head(url, allow_redirects=True, timeout=5)
         return res.url
     except Exception:
         try:
-            res = requests.get(url, headers=HEADERS, allow_redirects=True, timeout=4)
+            res = requests.get(url, headers=HEADERS, allow_redirects=True, timeout=5)
             return res.url
         except Exception:
             return url
 
 def fetch_real_price(url: str):
-    """Gerçek etiket fiyatını bot engelini aşarak çeker."""
+    """Trendyol, Hepsiburada ve Amazon bot kalkanlarını aşarak canlı fiyatı kazır."""
     try:
         final_url = resolve_url(url)
-        session = requests.Session()
-        session.headers.update(HEADERS)
-
         html_content = ""
+
+        # 1. Cloudscraper ile Trendyol/Cloudflare Kalkanını Geçme Denemesi
         try:
-            res = session.get(final_url, timeout=5)
+            scraper = cloudscraper.create_scraper(
+                browser={
+                    'browser': 'chrome',
+                    'platform': 'windows',
+                    'desktop': True
+                }
+            )
+            res = scraper.get(final_url, timeout=6)
             if res.status_code == 200:
                 html_content = res.text
-        except Exception:
-            pass
+        except Exception as e:
+            print("Cloudscraper Hatası:", e)
 
-        # Engel durumunda AllOrigins proxy tünelini kullan
+        # 2. Yedek Proxy Tüneli (Eğer Cloudscraper Takılırsa)
         if not html_content:
             try:
                 proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(final_url)}"
-                res = session.get(proxy_url, timeout=5)
+                res = requests.get(proxy_url, headers=HEADERS, timeout=5)
                 if res.status_code == 200:
                     data = res.json()
                     html_content = data.get('contents', '')
@@ -82,7 +81,7 @@ def fetch_real_price(url: str):
         soup = BeautifulSoup(html_content, 'html.parser')
         extracted_price = None
 
-        # 1. HTML Selector Taraması (Trendyol, Hepsiburada, Amazon Özel)
+        # A. TRENDYOL / HEPSİBURADA / AMAZON NOKTA ATIŞI FİYAT SELECTOR'LARI
         primary_selectors = [
             'span.prc-dsc', '.prc-dsc',                           # Trendyol Orijinal Fiyat
             '[data-test-id="price-current-price"]', '.price-bold', # Hepsiburada Orijinal Fiyat
@@ -105,7 +104,7 @@ def fetch_real_price(url: str):
                     except Exception:
                         pass
 
-        # 2. JSON-LD Şema Taraması (Görsel Seçiciler Bulamazsa)
+        # B. JSON-LD ŞEMA TARAMASI
         if not extracted_price:
             for script in soup.find_all('script', type='application/ld+json'):
                 try:
@@ -127,7 +126,7 @@ def fetch_real_price(url: str):
                 except Exception:
                     continue
 
-        # 3. Meta Tag Taraması
+        # C. META TAG TARAMASI
         if not extracted_price:
             for meta_prop in ['product:price:amount', 'og:price:amount', 'price']:
                 meta_price = soup.find('meta', property=meta_prop) or soup.find('meta', attrs={'name': meta_prop})
@@ -145,7 +144,6 @@ def fetch_real_price(url: str):
     except Exception:
         return None
 
-# POPÜLERLİK SIRALI MAĞAZA ARAMA SİSTEMİ
 @app.get("/api/search")
 def search_products(q: str):
     if not q:
@@ -155,48 +153,13 @@ def search_products(q: str):
     q_encoded = requests.utils.quote(q_clean)
 
     popular_stores = [
-        {
-            "name": f"{q_clean} - Trendyol",
-            "store": "Trendyol",
-            "price": None,
-            "url": f"https://www.trendyol.com/sr?q={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - Amazon TR",
-            "store": "Amazon TR",
-            "price": None,
-            "url": f"https://www.amazon.com.tr/s?k={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - Hepsiburada",
-            "store": "Hepsiburada",
-            "price": None,
-            "url": f"https://www.hepsiburada.com/ara?q={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - N11",
-            "store": "N11",
-            "price": None,
-            "url": f"https://www.n11.com/arama?q={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - Pazarama",
-            "store": "Pazarama",
-            "price": None,
-            "url": f"https://www.pazarama.com/arama?q={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - Çiçeksepeti",
-            "store": "Çiçeksepeti",
-            "price": None,
-            "url": f"https://www.ciceksepeti.com/arama?query={q_encoded}"
-        },
-        {
-            "name": f"{q_clean} - İncehesap",
-            "store": "İncehesap",
-            "price": None,
-            "url": f"https://www.incehesap.com/arama/?q={q_encoded}"
-        }
+        {"name": f"{q_clean} - Trendyol", "store": "Trendyol", "price": None, "url": f"https://www.trendyol.com/sr?q={q_encoded}"},
+        {"name": f"{q_clean} - Amazon TR", "store": "Amazon TR", "price": None, "url": f"https://www.amazon.com.tr/s?k={q_encoded}"},
+        {"name": f"{q_clean} - Hepsiburada", "store": "Hepsiburada", "price": None, "url": f"https://www.hepsiburada.com/ara?q={q_encoded}"},
+        {"name": f"{q_clean} - N11", "store": "N11", "price": None, "url": f"https://www.n11.com/arama?q={q_encoded}"},
+        {"name": f"{q_clean} - Pazarama", "store": "Pazarama", "price": None, "url": f"https://www.pazarama.com/arama?q={q_encoded}"},
+        {"name": f"{q_clean} - Çiçeksepeti", "store": "Çiçeksepeti", "price": None, "url": f"https://www.ciceksepeti.com/arama?query={q_encoded}"},
+        {"name": f"{q_clean} - İncehesap", "store": "İncehesap", "price": None, "url": f"https://www.incehesap.com/arama/?q={q_encoded}"}
     ]
 
     return popular_stores
@@ -212,8 +175,6 @@ def get_products():
 @app.post("/api/add-product")
 def add_product(item: ProductCreate):
     scraped_price = fetch_real_price(item.url)
-    
-    # Gerçek canlı fiyat söküldüyse onu kullanır, engellendiyse hedef fiyatı yedek alır
     final_price = scraped_price if (scraped_price and scraped_price > 0) else item.target_price
 
     new_prod = {
