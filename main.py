@@ -24,67 +24,112 @@ class ProductCreate(BaseModel):
     target_price: float
     url: str
 
-def resolve_and_fetch(url: str):
-    """3 saniyede fiyatı çekmeye çalışır, takılırsa None döner (ASILI KALMAZ)"""
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
-    
-    html_content = ""
-    
-    # 1. Doğrudan bağlantı denemesi (max 2.5 saniye)
-    try:
-        res = requests.get(url, headers=headers, timeout=2.5, allow_redirects=True)
-        if res.status_code == 200:
-            html_content = res.text
-    except Exception:
-        pass
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+    'Accept-Language': 'tr-TR,tr;q=0.9',
+}
 
-    # 2. Doğrudan çekilemediyse AllOrigins Proxy denemesi (max 2.5 saniye)
-    if not html_content:
+def resolve_url(url: str) -> str:
+    """amzn.eu, ty.gl gibi yönlendirme linklerini çözer."""
+    try:
+        session = requests.Session()
+        session.headers.update(HEADERS)
+        res = session.head(url, allow_redirects=True, timeout=4)
+        return res.url
+    except Exception:
         try:
-            proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(url)}"
-            res = requests.get(proxy_url, timeout=2.5)
+            res = requests.get(url, headers=HEADERS, allow_redirects=True, timeout=4)
+            return res.url
+        except Exception:
+            return url
+
+def fetch_real_price(url: str):
+    try:
+        final_url = resolve_url(url)
+        session = requests.Session()
+        session.headers.update(HEADERS)
+
+        html_content = ""
+        try:
+            res = session.get(final_url, timeout=4)
             if res.status_code == 200:
-                data = res.json()
-                html_content = data.get('contents', '')
+                html_content = res.text
         except Exception:
             pass
 
-    if not html_content:
-        return None
+        if not html_content:
+            try:
+                proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(final_url)}"
+                res = session.get(proxy_url, timeout=4)
+                if res.status_code == 200:
+                    data = res.json()
+                    html_content = data.get('contents', '')
+            except Exception:
+                pass
 
-    try:
+        if not html_content:
+            return None
+
         soup = BeautifulSoup(html_content, 'html.parser')
         extracted_price = None
 
-        # Schema JSON-LD Taraması
+        # 1. JSON-LD Şema Taraması (En Temiz Fiyat)
         for script in soup.find_all('script', type='application/ld+json'):
             try:
                 data_json = json.loads(script.string)
-                item = data_json[0] if isinstance(data_json, list) else data_json
-                if 'offers' in item:
-                    offers = item['offers']
-                    offer = offers[0] if isinstance(offers, list) else offers
-                    if 'price' in offer and offer['price']:
-                        extracted_price = float(offer['price'])
+                items = data_json if isinstance(data_json, list) else [data_json]
+                for item in items:
+                    if 'offers' in item:
+                        offers = item['offers']
+                        offer_list = offers if isinstance(offers, list) else [offers]
+                        for offer in offer_list:
+                            if 'price' in offer and offer['price']:
+                                extracted_price = float(str(offer['price']).replace(',', '.'))
+                                break
+                            elif 'lowPrice' in offer and offer['lowPrice']:
+                                extracted_price = float(str(offer['lowPrice']).replace(',', '.'))
+                                break
+                    if extracted_price:
                         break
             except Exception:
                 continue
 
-        # Meta Tag Taraması
+        # 2. Meta Tag Taraması
         if not extracted_price:
-            meta_price = soup.find('meta', property='product:price:amount') or soup.find('meta', property='og:price:amount')
-            if meta_price and meta_price.get('content'):
-                clean_meta = meta_price['content'].replace(',', '.')
-                extracted_price = float(re.sub(r'[^\d.]', '', clean_meta))
+            for meta_prop in ['product:price:amount', 'og:price:amount', 'price']:
+                meta_price = soup.find('meta', property=meta_prop) or soup.find('meta', attrs={'name': meta_prop})
+                if meta_price and meta_price.get('content'):
+                    try:
+                        clean_meta = meta_price['content'].replace('.', '').replace(',', '.')
+                        val = float(re.sub(r'[^\d.]', '', clean_meta))
+                        if val > 0:
+                            extracted_price = val
+                            break
+                    except Exception:
+                        pass
 
-        # HTML Selector Taraması
+        # 3. HTML Selector Taraması (Amazon & Trendyol Özel)
         if not extracted_price:
-            el = soup.select_one('.prc-dsc') or soup.select_one('.a-price-whole') or soup.select_one('[data-test-id="price-current-price"]')
-            if el:
-                clean_text = re.sub(r'[^\d,.]', '', el.get_text()).replace(',', '.')
-                extracted_price = float(clean_text)
+            selectors = [
+                '.prc-dsc', '.prc-slg', '.product-price-container',
+                '.a-price .a-offscreen', '#priceblock_ourprice', '#priceblock_dealprice',
+                '.a-price-whole', '[data-test-id="price-current-price"]'
+            ]
+            for sel in selectors:
+                el = soup.select_one(sel)
+                if el:
+                    text = el.get_text().strip()
+                    clean_text = text.replace('.', '').replace(',', '.')
+                    match = re.search(r'\d+(\.\d+)?', clean_text)
+                    if match:
+                        try:
+                            val = float(match.group(0))
+                            if val > 0:
+                                extracted_price = val
+                                break
+                        except Exception:
+                            pass
 
         return extracted_price
     except Exception:
@@ -92,7 +137,7 @@ def resolve_and_fetch(url: str):
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "Axion Backend Engine Active"}
+    return {"status": "ok", "message": "Axion Engine Active"}
 
 @app.get("/api/products")
 def get_products():
@@ -100,8 +145,9 @@ def get_products():
 
 @app.post("/api/add-product")
 def add_product(item: ProductCreate):
-    # Fiyat çekilemez veya zaman aşımına uğrarsa hedef fiyatı alır, ASILI KALMAZ
-    scraped_price = resolve_and_fetch(item.url)
+    scraped_price = fetch_real_price(item.url)
+    
+    # Gerçek fiyat bulunduysa onu kullanır, bulunamadıysa hedef fiyatı alır
     final_price = scraped_price if (scraped_price and scraped_price > 0) else item.target_price
 
     new_prod = {
@@ -120,11 +166,11 @@ def add_product(item: ProductCreate):
 def check_prices():
     updated = 0
     for prod in products:
-        new_price = resolve_and_fetch(prod["url"])
-        if new_price and new_price != prod["current_price"]:
+        new_price = fetch_real_price(prod["url"])
+        if new_price and new_price > 0:
             prod["current_price"] = new_price
             updated += 1
-    return {"message": "Tüm fiyatlar güncellendi", "updated": updated}
+    return {"message": "Fiyatlar güncellendi", "updated": updated}
 
 @app.delete("/api/products/{prod_id}")
 def delete_product(prod_id: str):
