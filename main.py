@@ -25,7 +25,7 @@ class ProductCreate(BaseModel):
     url: str
 
 HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     'Accept-Language': 'tr-TR,tr;q=0.9',
 }
 
@@ -46,7 +46,7 @@ def fetch_real_price(url: str):
 
         html_content = ""
         try:
-            res = session.get(final_url, timeout=3)
+            res = session.get(final_url, timeout=3.5)
             if res.status_code == 200:
                 html_content = res.text
         except Exception:
@@ -55,7 +55,7 @@ def fetch_real_price(url: str):
         if not html_content:
             try:
                 proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(final_url)}"
-                res = session.get(proxy_url, timeout=3)
+                res = session.get(proxy_url, timeout=3.5)
                 if res.status_code == 200:
                     html_content = res.json().get('contents', '')
             except Exception:
@@ -80,6 +80,9 @@ def fetch_real_price(url: str):
                             if 'price' in offer and offer['price']:
                                 extracted_price = float(str(offer['price']).replace(',', '.'))
                                 break
+                            elif 'lowPrice' in offer and offer['lowPrice']:
+                                extracted_price = float(str(offer['lowPrice']).replace(',', '.'))
+                                break
                     if extracted_price: break
             except Exception:
                 continue
@@ -100,7 +103,7 @@ def fetch_real_price(url: str):
 
         # 3. HTML Selector Taraması
         if not extracted_price:
-            selectors = ['.prc-dsc', '.prc-slg', '.a-price-whole', '[data-test-id="price-current-price"]']
+            selectors = ['.prc-dsc', '.prc-slg', '.a-price-whole', '[data-test-id="price-current-price"]', '.product-price']
             for sel in selectors:
                 el = soup.select_one(sel)
                 if el:
@@ -116,85 +119,92 @@ def fetch_real_price(url: str):
     except Exception:
         return None
 
-# GEMINI AKILLI AI ARAMA MOTORU (DOĞRUDAN ÜRÜN KARTLARI ÜRETİR)
+# TEKİL ÜRÜN DETAY LİNKİ VE CANLI FİYAT ÇEKİCİ AI ARAMA MOTORU
 @app.get("/api/search")
 def search_products(q: str):
     if not q:
         return []
 
-    # Akıllı AI ayrıştırma: Ürünü analiz eder, popüler e-ticaret sayfaları için direkt link oluşturur
-    clean_q = q.strip()
-    q_encoded = requests.utils.quote(clean_q)
-
-    # Doğrudan mağazalara yönlendiren nokta atışı akıllı kartlar
-    ai_generated_results = [
-        {
-            "name": f"{clean_q} (Trendyol Mağaza Arama)",
-            "store": "Trendyol",
-            "price": None,
-            "url": f"https://www.trendyol.com/sr?q={q_encoded}"
-        },
-        {
-            "name": f"{clean_q} (Amazon TR Mağaza Arama)",
-            "store": "Amazon TR",
-            "price": None,
-            "url": f"https://www.amazon.com.tr/s?k={q_encoded}"
-        },
-        {
-            "name": f"{clean_q} (Hepsiburada Mağaza Arama)",
-            "store": "Hepsiburada",
-            "price": None,
-            "url": f"https://www.hepsiburada.com/ara?q={q_encoded}"
-        }
-    ]
-
-    # Ek olarak arka planda arama tünelinden gerçek fiyat ve link ayrıştırmayı dener
+    q_clean = q.strip()
+    results = []
+    
+    # Doğrudan ürün sayfalarını hedefleyen arama sorgusu
+    search_url = f"https://html.duckduckgo.com/html/?q={requests.utils.quote(q_clean + ' satın al site:trendyol.com/ OR site:amazon.com.tr/dp/')}"
+    
     try:
-        search_url = f"https://html.duckduckgo.com/html/?q={q_encoded}+fiyat+site:trendyol.com+OR+site:amazon.com.tr"
-        res = requests.get(search_url, headers=HEADERS, timeout=3)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, 'html.parser')
-            parsed_items = []
+        session = requests.Session()
+        session.headers.update(HEADERS)
+        
+        res = session.get(search_url, timeout=4)
+        html_data = res.text if res.status_code == 200 else ""
+        
+        if not html_data:
+            proxy_url = f"https://api.allorigins.win/get?url={requests.utils.quote(search_url)}"
+            p_res = session.get(proxy_url, timeout=4)
+            if p_res.status_code == 200:
+                html_data = p_res.json().get('contents', '')
+
+        if html_data:
+            soup = BeautifulSoup(html_data, 'html.parser')
             for r in soup.select('.result'):
                 title_el = r.select_one('.result__title a')
                 snippet_el = r.select_one('.result__snippet')
+                
                 if title_el:
                     link = title_el.get('href', '')
                     if 'uddg=' in link:
                         match = re.search(r'uddg=([^&]+)', link)
                         if match:
                             link = requests.utils.unquote(match.group(1))
+
+                    # Arama sonuç sayfalarını ele, SADECE gerçek ürün detay sayfalarını al
+                    is_valid_product_url = False
+                    store_name = "E-Ticaret"
                     
-                    # Sadece gerçek mağaza detay linklerini alır (Arama sayfalarını eler)
-                    if 'trendyol.com' in link or 'amazon.com.tr' in link:
+                    if 'trendyol.com/' in link and '-p-' in link:
+                        is_valid_product_url = True
+                        store_name = "Trendyol"
+                    elif 'amazon.com.tr/' in link and ('/dp/' in link or '/gp/product/' in link):
+                        is_valid_product_url = True
+                        store_name = "Amazon TR"
+                    elif 'hepsiburada.com/' in link and '-pm-' in link:
+                        is_valid_product_url = True
+                        store_name = "Hepsiburada"
+
+                    if is_valid_product_url:
                         t_text = title_el.get_text().strip()
                         s_text = snippet_el.get_text() if snippet_el else ""
-                        
-                        price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', s_text, re.IGNORECASE)
-                        p_val = None
-                        if price_match:
-                            try: p_val = float(price_match.group(1).replace('.', '').replace(',', '.'))
-                            except: pass
 
-                        store_name = "Trendyol" if "trendyol" in link else "Amazon TR"
-                        parsed_items.append({
-                            "name": t_text,
+                        # Açıklamadan fiyatı yakalama
+                        price_match = re.search(r'(\d{1,3}(\.\d{3})*(,\d{2})?)\s*(TL|₺)', s_text, re.IGNORECASE)
+                        price_val = None
+                        if price_match:
+                            try:
+                                price_val = float(price_match.group(1).replace('.', '').replace(',', '.'))
+                            except:
+                                pass
+
+                        # Eğer arama sonucunda fiyat çıkmadıysa backend anında doğrudan ürün sayfasına gidip canlı fiyatı söker!
+                        if not price_val:
+                            price_val = fetch_real_price(link)
+
+                        results.append({
+                            "name": t_text.split(' - ')[0], # Temiz ürün başlığı
                             "store": store_name,
-                            "price": p_val,
+                            "price": price_val,
                             "url": link
                         })
-                        if len(parsed_items) >= 3:
-                            break
-            if len(parsed_items) > 0:
-                return parsed_items
-    except Exception:
-        pass
 
-    return ai_generated_results
+                        if len(results) >= 5:
+                            break
+    except Exception as e:
+        print("Arama hatası:", e)
+
+    return results
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "Axion AI Engine Active"}
+    return {"status": "ok", "message": "Axion Engine Active"}
 
 @app.get("/api/products")
 def get_products():
